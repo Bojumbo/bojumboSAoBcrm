@@ -1,3 +1,4 @@
+
 import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, ProjectStatusType, SubProjectStatusType } from '../types';
 
 // In-memory database
@@ -67,7 +68,7 @@ let sales_services: { sale_id: number; service_id: number }[] = [
     { sale_id: 2, service_id: 2 },
 ];
 
-let projects: Project[] = [
+let projects: Omit<Project, 'responsible_manager' | 'counterparty' | 'subprojects' | 'tasks'>[] = [
     { project_id: 1, name: 'Розробка нового сайту', responsible_manager_id: 2, counterparty_id: 1, status: 'В роботі' },
 ];
 
@@ -75,7 +76,7 @@ let subprojects: SubProject[] = [
     { subproject_id: 1, name: 'Дизайн UI/UX', project_id: 1, status: 'В процесі' },
 ];
 
-let tasks: Task[] = [
+let tasks: Omit<Task, 'responsible_manager' | 'creator_manager' | 'project' | 'subproject'>[] = [
     { task_id: 1, title: 'Створити макет головної сторінки', description: 'Підготувати декілька варіантів дизайну', responsible_manager_id: 2, creator_manager_id: 1, project_id: 1, subproject_id: 1, due_date: '2024-08-15' },
 ];
 
@@ -101,6 +102,27 @@ const db = {
 type Entity = keyof typeof db;
 
 const simulateNetwork = (delay = 500) => new Promise(res => setTimeout(res, delay));
+
+// FIX: Replaced faulty pluralization logic with a robust helper function to ensure
+// the correct ID key (e.g., 'sale_id' from 'sales') is always used in CRUD operations.
+const getIdKeyForEntity = (entity: Entity): string => {
+    switch (entity) {
+        case 'managers': return 'manager_id';
+        case 'counterparties': return 'counterparty_id';
+        case 'units': return 'unit_id';
+        case 'products': return 'product_id';
+        case 'services': return 'service_id';
+        case 'warehouses': return 'warehouse_id';
+        case 'saleStatuses': return 'sale_status_id';
+        case 'projectStatuses': return 'project_status_id';
+        case 'subProjectStatuses': return 'sub_project_status_id';
+        case 'sales': return 'sale_id';
+        case 'projects': return 'project_id';
+        case 'subprojects': return 'subproject_id';
+        case 'tasks': return 'task_id';
+        default: return 'id'; // Fallback
+    }
+};
 
 const api = {
     getAll: async <T,>(entity: Entity): Promise<T[]> => {
@@ -142,12 +164,21 @@ const api = {
                 unit: db.units.find(u => u.unit_id === p.unit_id)
             })) as T[];
         }
+        if (entity === 'tasks') {
+            return db.tasks.map(task => ({
+                ...task,
+                responsible_manager: db.managers.find(m => m.manager_id === task.responsible_manager_id),
+                creator_manager: db.managers.find(m => m.manager_id === task.creator_manager_id),
+                project: db.projects.find(p => p.project_id === task.project_id),
+                subproject: db.subprojects.find(sp => sp.subproject_id === task.subproject_id),
+            })) as T[];
+        }
         return [...db[entity]] as T[];
     },
     getById: async <T,>(entity: Entity, id: number): Promise<T | null> => {
         await simulateNetwork();
         console.log(`[API MOCK] GET /api/${entity}/${id}`);
-        const idKey = `${entity.slice(0, -1)}_id`;
+        const idKey = getIdKeyForEntity(entity);
         // @ts-ignore
         const item = db[entity].find(item => item[idKey] === id);
         
@@ -197,8 +228,7 @@ const api = {
             return newSale as T;
         }
         
-        const entityName = entity.endsWith('es') ? entity.slice(0, -2) : entity.slice(0, -1);
-        const idKey = `${entityName}_id`;
+        const idKey = getIdKeyForEntity(entity);
         // @ts-ignore
         const newId = Math.max(0, ...db[entity].map(item => item[idKey])) + 1;
         const newItem = { ...data, [idKey]: newId };
@@ -209,8 +239,7 @@ const api = {
     update: async <T extends { [key: string]: any },>(entity: Entity, id: number, data: Partial<T>): Promise<T | null> => {
         await simulateNetwork();
         console.log(`[API MOCK] PUT /api/${entity}/${id}`, data);
-        const entityName = entity.endsWith('es') ? entity.slice(0, -2) : entity.slice(0, -1);
-        const idKey = `${entityName}_id`;
+        const idKey = getIdKeyForEntity(entity);
         // @ts-ignore
         const index = db[entity].findIndex(item => item[idKey] === id);
         if (index === -1) return null;
@@ -222,10 +251,16 @@ const api = {
     delete: async (entity: Entity, id: number): Promise<boolean> => {
         await simulateNetwork();
         console.log(`[API MOCK] DELETE /api/${entity}/${id}`);
-        const entityName = entity.endsWith('es') ? entity.slice(0, -2) : entity.slice(0, -1);
-        const idKey = `${entityName}_id`;
+        const idKey = getIdKeyForEntity(entity);
         // @ts-ignore
         const initialLength = db[entity].length;
+        
+        if (entity === 'projects') {
+            // Cascade delete subprojects and tasks
+            db.subprojects = db.subprojects.filter(sp => sp.project_id !== id);
+            db.tasks = db.tasks.filter(t => t.project_id !== id);
+        }
+
         // @ts-ignore
         db[entity] = db[entity].filter(item => item[idKey] !== id);
         

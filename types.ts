@@ -106,4 +106,6 @@ export interface Task {
   due_date: string | null;
   responsible_manager?: Manager;
   creator_manager?: Manager;
+  project?: Project;
+  subproject?: SubProject;
 }
