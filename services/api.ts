@@ -1,5 +1,4 @@
-
-import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, SaleStatus } from '../types';
+import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, ProjectStatusType, SubProjectStatusType } from '../types';
 
 // In-memory database
 let managers: Manager[] = [
@@ -12,9 +11,15 @@ let counterparties: Counterparty[] = [
     { counterparty_id: 2, name: 'ФОП Сидоренко', counterparty_type: CounterpartyType.INDIVIDUAL, responsible_manager_id: 2 },
 ];
 
-let products: Product[] = [
-    { product_id: 1, name: 'Ноутбук Pro 15', description: 'Потужний ноутбук для професіоналів', price: 1500.00 },
-    { product_id: 2, name: 'Миша Wireless X', description: 'Ергономічна бездротова миша', price: 50.00 },
+let units: Unit[] = [
+    { unit_id: 1, name: 'шт.' },
+    { unit_id: 2, name: 'кг' },
+    { unit_id: 3, name: 'уп.' },
+];
+
+let products: Omit<Product, 'unit'>[] = [
+    { product_id: 1, name: 'Ноутбук Pro 15', description: 'Потужний ноутбук для професіоналів', price: 1500.00, unit_id: 1 },
+    { product_id: 2, name: 'Миша Wireless X', description: 'Ергономічна бездротова миша', price: 50.00, unit_id: 1 },
 ];
 
 let services: Service[] = [
@@ -26,10 +31,28 @@ let warehouses: Warehouse[] = [
     { warehouse_id: 1, name: 'Основний склад', location: 'Київ, вул. Центральна, 1' },
 ];
 
+let saleStatuses: SaleStatusType[] = [
+    { sale_status_id: 1, name: 'Не оплачено' },
+    { sale_status_id: 2, name: 'Відтермінована оплата' },
+    { sale_status_id: 3, name: 'Оплачено' },
+];
+
+let projectStatuses: ProjectStatusType[] = [
+    { project_status_id: 1, name: 'Новий' },
+    { project_status_id: 2, name: 'В роботі' },
+    { project_status_id: 3, name: 'Завершено' },
+];
+
+let subProjectStatuses: SubProjectStatusType[] = [
+    { sub_project_status_id: 1, name: 'Заплановано' },
+    { sub_project_status_id: 2, name: 'В процесі' },
+    { sub_project_status_id: 3, name: 'Готово' },
+];
+
 let sales: Omit<Sale, 'counterparty' | 'responsible_manager' | 'products' | 'services' | 'total_price'>[] = [
-    { sale_id: 1, counterparty_id: 1, responsible_manager_id: 1, sale_date: new Date('2024-05-20').toISOString(), status: SaleStatus.PAID, deferred_payment_date: null },
-    { sale_id: 2, counterparty_id: 2, responsible_manager_id: 1, sale_date: new Date('2024-05-22').toISOString(), status: SaleStatus.DEFERRED, deferred_payment_date: '2024-06-30' },
-    { sale_id: 3, counterparty_id: 1, responsible_manager_id: 2, sale_date: new Date().toISOString(), status: SaleStatus.NOT_PAID, deferred_payment_date: null },
+    { sale_id: 1, counterparty_id: 1, responsible_manager_id: 1, sale_date: new Date('2024-05-20').toISOString(), status: 'Оплачено', deferred_payment_date: null },
+    { sale_id: 2, counterparty_id: 2, responsible_manager_id: 1, sale_date: new Date('2024-05-22').toISOString(), status: 'Відтермінована оплата', deferred_payment_date: '2024-06-30' },
+    { sale_id: 3, counterparty_id: 1, responsible_manager_id: 2, sale_date: new Date().toISOString(), status: 'Не оплачено', deferred_payment_date: null },
 ];
 
 let sales_products: { sale_id: number; product_id: number; quantity: number }[] = [
@@ -45,11 +68,11 @@ let sales_services: { sale_id: number; service_id: number }[] = [
 ];
 
 let projects: Project[] = [
-    { project_id: 1, name: 'Розробка нового сайту', responsible_manager_id: 2, counterparty_id: 1 },
+    { project_id: 1, name: 'Розробка нового сайту', responsible_manager_id: 2, counterparty_id: 1, status: 'В роботі' },
 ];
 
 let subprojects: SubProject[] = [
-    { subproject_id: 1, name: 'Дизайн UI/UX', project_id: 1 },
+    { subproject_id: 1, name: 'Дизайн UI/UX', project_id: 1, status: 'В процесі' },
 ];
 
 let tasks: Task[] = [
@@ -69,6 +92,10 @@ const db = {
     projects,
     subprojects,
     tasks,
+    units,
+    saleStatuses,
+    projectStatuses,
+    subProjectStatuses,
 };
 
 type Entity = keyof typeof db;
@@ -85,9 +112,11 @@ const api = {
               .filter(sp => sp.sale_id === sale.sale_id)
               .map(sp => {
                   const product = db.products.find(p => p.product_id === sp.product_id);
-                  return product ? { product, quantity: sp.quantity } : null;
+                  return product ? { product: { ...product, unit: db.units.find(u => u.unit_id === product.unit_id)}, quantity: sp.quantity } : null;
               })
-              .filter((item): item is { product: Product; quantity: number } => item !== null);
+              // FIX: Replaced the specific type guard with a more robust one using `Exclude`
+              // to work around a complex TypeScript inference issue with nested object types.
+              .filter((item): item is Exclude<typeof item, null> => item !== null);
     
             const saleServices = db.sales_services
               .filter(ss => ss.sale_id === sale.sale_id)
@@ -107,13 +136,20 @@ const api = {
             };
           }) as T[];
         }
+        if (entity === 'products') {
+            return db.products.map(p => ({
+                ...p,
+                unit: db.units.find(u => u.unit_id === p.unit_id)
+            })) as T[];
+        }
         return [...db[entity]] as T[];
     },
     getById: async <T,>(entity: Entity, id: number): Promise<T | null> => {
         await simulateNetwork();
         console.log(`[API MOCK] GET /api/${entity}/${id}`);
+        const idKey = `${entity.slice(0, -1)}_id`;
         // @ts-ignore
-        const item = db[entity].find(item => item[`${entity.slice(0, -1)}_id`] === id);
+        const item = db[entity].find(item => item[idKey] === id);
         
         if (!item) return null;
         
@@ -160,8 +196,9 @@ const api = {
             }
             return newSale as T;
         }
-
-        const idKey = `${entity.slice(0, -1)}_id`;
+        
+        const entityName = entity.endsWith('es') ? entity.slice(0, -2) : entity.slice(0, -1);
+        const idKey = `${entityName}_id`;
         // @ts-ignore
         const newId = Math.max(0, ...db[entity].map(item => item[idKey])) + 1;
         const newItem = { ...data, [idKey]: newId };
@@ -172,7 +209,8 @@ const api = {
     update: async <T extends { [key: string]: any },>(entity: Entity, id: number, data: Partial<T>): Promise<T | null> => {
         await simulateNetwork();
         console.log(`[API MOCK] PUT /api/${entity}/${id}`, data);
-        const idKey = `${entity.slice(0, -1)}_id`;
+        const entityName = entity.endsWith('es') ? entity.slice(0, -2) : entity.slice(0, -1);
+        const idKey = `${entityName}_id`;
         // @ts-ignore
         const index = db[entity].findIndex(item => item[idKey] === id);
         if (index === -1) return null;
@@ -184,7 +222,8 @@ const api = {
     delete: async (entity: Entity, id: number): Promise<boolean> => {
         await simulateNetwork();
         console.log(`[API MOCK] DELETE /api/${entity}/${id}`);
-        const idKey = `${entity.slice(0, -1)}_id`;
+        const entityName = entity.endsWith('es') ? entity.slice(0, -2) : entity.slice(0, -1);
+        const idKey = `${entityName}_id`;
         // @ts-ignore
         const initialLength = db[entity].length;
         // @ts-ignore

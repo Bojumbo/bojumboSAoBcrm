@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
-import { Sale, Manager, Counterparty, Product, Service, SaleStatus } from '../types';
+import { Sale, Manager, Counterparty, Product, Service, SaleStatusType } from '../types';
 import PageHeader from '../components/PageHeader';
 import { TrashIcon, PlusIcon } from '../components/Icons';
 
@@ -12,20 +13,21 @@ const SaleForm: React.FC<{
     counterparties: Counterparty[];
     products: Product[];
     services: Service[];
-}> = ({ onSave, onCancel, managers, counterparties, products, services }) => {
+    saleStatuses: SaleStatusType[];
+}> = ({ onSave, onCancel, managers, counterparties, products, services, saleStatuses }) => {
     const [formData, setFormData] = useState<{
         counterparty_id: string;
         responsible_manager_id: string;
         products: { product_id: string; quantity: number }[];
         services: { service_id: string }[];
-        status: SaleStatus;
+        status: string;
         deferred_payment_date: string;
     }>({
         counterparty_id: '',
         responsible_manager_id: '',
         products: [],
         services: [],
-        status: SaleStatus.NOT_PAID,
+        status: saleStatuses[0]?.name || '',
         deferred_payment_date: '',
     });
 
@@ -44,8 +46,9 @@ const SaleForm: React.FC<{
 
         return productsTotal + servicesTotal;
     }, [formData.products, formData.services, products, services]);
-
-    const isFormValid = formData.counterparty_id && formData.responsible_manager_id && (formData.status !== SaleStatus.DEFERRED || formData.deferred_payment_date);
+    
+    const DEFERRED_STATUS_NAME = 'Відтермінована оплата'; // This could be made more robust
+    const isFormValid = formData.counterparty_id && formData.responsible_manager_id && (formData.status !== DEFERRED_STATUS_NAME || formData.deferred_payment_date);
 
     const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -95,7 +98,7 @@ const SaleForm: React.FC<{
             responsible_manager_id: parseInt(formData.responsible_manager_id),
             sale_date: new Date().toISOString(),
             status: formData.status,
-            deferred_payment_date: formData.status === SaleStatus.DEFERRED ? formData.deferred_payment_date : null,
+            deferred_payment_date: formData.status === DEFERRED_STATUS_NAME ? formData.deferred_payment_date : null,
             products: formData.products
                 .filter(p => p.product_id)
                 .map(p => ({ product_id: parseInt(p.product_id), quantity: p.quantity })),
@@ -133,10 +136,10 @@ const SaleForm: React.FC<{
                          <div>
                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Статус оплати</label>
                             <select name="status" value={formData.status} onChange={handleChange} required className={baseInputClasses}>
-                                {Object.values(SaleStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                                {saleStatuses.map(s => <option key={s.sale_status_id} value={s.name}>{s.name}</option>)}
                             </select>
                         </div>
-                        {formData.status === SaleStatus.DEFERRED && (
+                        {formData.status === DEFERRED_STATUS_NAME && (
                              <div>
                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Дата відтермінованої оплати</label>
                                 <input type="date" name="deferred_payment_date" value={formData.deferred_payment_date} onChange={handleChange} required className={baseInputClasses}/>
@@ -228,22 +231,26 @@ const Sales: React.FC = () => {
     const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [services, setServices] = useState<Service[]>([]);
+    const [saleStatuses, setSaleStatuses] = useState<SaleStatusType[]>([]);
+
 
     const fetchSalesAndDeps = useCallback(async () => {
         setLoading(true);
         try {
-            const [salesData, managersData, counterpartiesData, productsData, servicesData] = await Promise.all([
+            const [salesData, managersData, counterpartiesData, productsData, servicesData, saleStatusesData] = await Promise.all([
                 api.getAll<Sale>('sales'),
                 api.getAll<Manager>('managers'),
                 api.getAll<Counterparty>('counterparties'),
                 api.getAll<Product>('products'),
                 api.getAll<Service>('services'),
+                api.getAll<SaleStatusType>('saleStatuses'),
             ]);
             setSales(salesData.sort((a, b) => b.sale_id - a.sale_id));
             setManagers(managersData);
             setCounterparties(counterpartiesData);
             setProducts(productsData);
             setServices(servicesData);
+            setSaleStatuses(saleStatusesData);
         } catch (error) {
             console.error("Failed to fetch sales data", error);
         } finally {
@@ -259,6 +266,26 @@ const Sales: React.FC = () => {
         if (window.confirm('Ви впевнені, що хочете видалити цей продаж?')) {
             await api.delete('sales', id);
             fetchSalesAndDeps();
+        }
+    };
+
+    const handleStatusChange = async (saleId: number, newStatus: string) => {
+        const originalSale = sales.find(s => s.sale_id === saleId);
+        if (!originalSale || originalSale.status === newStatus) return;
+
+        try {
+            const updatePayload: { status: string; deferred_payment_date?: string | null } = { status: newStatus };
+            // If the status is no longer 'Deferred Payment', clear the date.
+            if (originalSale.status === 'Відтермінована оплата' && newStatus !== 'Відтермінована оплата') {
+                updatePayload.deferred_payment_date = null;
+            }
+            
+            await api.update('sales', saleId, updatePayload);
+            // Refetch all data to ensure consistency.
+            fetchSalesAndDeps();
+        } catch (error) {
+            console.error("Failed to update sale status", error);
+            alert("Не вдалося оновити статус.");
         }
     };
     
@@ -296,9 +323,20 @@ const Sales: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{s.responsible_manager ? `${s.responsible_manager.first_name} ${s.responsible_manager.last_name}` : 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{new Date(s.sale_date).toLocaleDateString()}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                                        {s.status}
-                                        {s.status === SaleStatus.DEFERRED && s.deferred_payment_date && (
-                                            <span className="block text-xs text-gray-400">
+                                        <select
+                                            value={s.status}
+                                            onChange={(e) => handleStatusChange(s.sale_id, e.target.value)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:border-indigo-500 focus:ring-indigo-500 text-sm p-1 shadow-sm"
+                                        >
+                                            {saleStatuses.map(status => (
+                                                <option key={status.sale_status_id} value={status.name}>
+                                                    {status.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {s.status === 'Відтермінована оплата' && s.deferred_payment_date && (
+                                            <span className="block text-xs text-gray-400 mt-1">
                                                 до {new Date(s.deferred_payment_date).toLocaleDateString()}
                                             </span>
                                         )}
@@ -321,6 +359,7 @@ const Sales: React.FC = () => {
                     counterparties={counterparties}
                     products={products}
                     services={services}
+                    saleStatuses={saleStatuses}
                 />
             )}
         </div>

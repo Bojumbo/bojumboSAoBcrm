@@ -20,11 +20,18 @@ export interface Counterparty {
   responsible_manager?: Manager;
 }
 
+export interface Unit {
+    unit_id: number;
+    name: string;
+}
+
 export interface Product {
   product_id: number;
   name: string;
   description: string;
   price: number;
+  unit_id?: number | null;
+  unit?: Unit;
 }
 
 export interface Service {
@@ -40,18 +47,26 @@ export interface Warehouse {
   location: string;
 }
 
-export enum SaleStatus {
-  NOT_PAID = 'Не оплачено',
-  DEFERRED = 'Відтермінована оплата',
-  PAID = 'Оплачено',
+export interface SaleStatusType {
+    sale_status_id: number;
+    name: string;
 }
+export interface ProjectStatusType {
+    project_status_id: number;
+    name: string;
+}
+export interface SubProjectStatusType {
+    sub_project_status_id: number;
+    name: string;
+}
+
 
 export interface Sale {
   sale_id: number;
   counterparty_id: number;
   responsible_manager_id: number;
   sale_date: string;
-  status: SaleStatus;
+  status: string;
   deferred_payment_date?: string | null;
   counterparty?: Counterparty;
   responsible_manager?: Manager;
@@ -66,6 +81,7 @@ export interface Project {
   name: string;
   responsible_manager_id: number | null;
   counterparty_id: number | null;
+  status?: string;
   responsible_manager?: Manager;
   counterparty?: Counterparty;
   subprojects?: SubProject[];
@@ -76,6 +92,7 @@ export interface SubProject {
   subproject_id: number;
   name: string;
   project_id: number;
+  status?: string;
 }
 
 export interface Task {
