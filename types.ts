@@ -61,10 +61,19 @@ export interface SaleStatusType {
     sale_status_id: number;
     name: string;
 }
-export interface ProjectStatusType {
-    project_status_id: number;
-    name: string;
+
+export interface Funnel {
+  funnel_id: number;
+  name: string;
 }
+
+export interface FunnelStage {
+  funnel_stage_id: number;
+  name: string;
+  funnel_id: number;
+  order: number;
+}
+
 export interface SubProjectStatusType {
     sub_project_status_id: number;
     name: string;
@@ -118,11 +127,15 @@ export interface ProjectComment {
 export interface Project {
   project_id: number;
   name: string;
-  responsible_manager_id: number | null;
+  description?: string;
+  main_responsible_manager_id: number | null;
+  secondary_responsible_manager_ids?: number[];
   counterparty_id: number | null;
-  status?: string;
+  funnel_id?: number | null;
+  funnel_stage_id?: number | null;
   forecast_amount: number;
-  responsible_manager?: Manager;
+  main_responsible_manager?: Manager;
+  secondary_responsible_managers?: Manager[];
   counterparty?: Counterparty;
   subprojects?: SubProject[];
   tasks?: Task[];
@@ -130,6 +143,8 @@ export interface Project {
   project_products?: ProjectProduct[];
   project_services?: ProjectService[];
   comments?: ProjectComment[];
+  funnel?: Funnel;
+  funnel_stage?: FunnelStage;
 }
 
 export interface SubProject {

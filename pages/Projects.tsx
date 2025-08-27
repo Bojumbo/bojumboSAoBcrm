@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
-import { Project, Manager, Counterparty, ProjectStatusType } from '../types';
+import { Project, Manager, Counterparty, Funnel, FunnelStage } from '../types';
 import PageHeader from '../components/PageHeader';
-import { PencilIcon, TrashIcon, FunnelIcon } from '../components/Icons';
+import { TrashIcon, FunnelIcon, BanknotesIcon } from '../components/Icons';
 
 const ProjectForm: React.FC<{
     project?: Project | null;
@@ -11,29 +11,72 @@ const ProjectForm: React.FC<{
     onCancel: () => void;
     managers: Manager[];
     counterparties: Counterparty[];
-    projectStatuses: ProjectStatusType[];
-}> = ({ project, onSave, onCancel, managers, counterparties, projectStatuses }) => {
+    funnels: Funnel[];
+    funnelStages: FunnelStage[];
+}> = ({ project, onSave, onCancel, managers, counterparties, funnels, funnelStages }) => {
     const [formData, setFormData] = useState({
         name: '',
-        status: projectStatuses[0]?.name || '',
         forecast_amount: 0,
         ...project,
-        // FIX: Removed duplicate `responsible_manager_id` and `counterparty_id` properties. The versions below handle both create and edit cases correctly.
-        responsible_manager_id: project?.responsible_manager_id?.toString() || '',
+        main_responsible_manager_id: project?.main_responsible_manager_id?.toString() || '',
+        secondary_responsible_manager_ids: project?.secondary_responsible_manager_ids?.map(String) || [],
         counterparty_id: project?.counterparty_id?.toString() || '',
+        funnel_id: project?.funnel_id?.toString() || (funnels[0]?.funnel_id.toString() ?? ''),
+        funnel_stage_id: project?.funnel_stage_id?.toString() || '',
     });
+
+    const availableStages = useMemo(() => {
+        return funnelStages.filter(s => s.funnel_id.toString() === formData.funnel_id).sort((a, b) => a.order - b.order);
+    }, [formData.funnel_id, funnelStages]);
+
+    useEffect(() => {
+        // If the project is new or the funnel is changed, set stage to the first available stage
+        if (!project || (project && project.funnel_id?.toString() !== formData.funnel_id)) {
+            const firstStageId = availableStages[0]?.funnel_stage_id.toString() || '';
+            if (formData.funnel_stage_id !== firstStageId) {
+                 setFormData(prev => ({ ...prev, funnel_stage_id: firstStageId }));
+            }
+        }
+    }, [formData.funnel_id, availableStages, project]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
+
+        if (name === 'main_responsible_manager_id') {
+             // Remove the new main manager from the secondary list if they are there
+            const newSecondaryIds = formData.secondary_responsible_manager_ids.filter(id => id !== value);
+            setFormData(prev => ({ ...prev, main_responsible_manager_id: value, secondary_responsible_manager_ids: newSecondaryIds }));
+            return;
+        }
+
         setFormData({ ...formData, [name]: name === 'forecast_amount' ? parseFloat(value) : value });
     };
+
+    const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { value, checked } = e.target;
+        const currentIds = formData.secondary_responsible_manager_ids;
+        let newIds;
+        if (checked) {
+            newIds = [...currentIds, value];
+        } else {
+            newIds = currentIds.filter(id => id !== value);
+        }
+        setFormData({ ...formData, secondary_responsible_manager_ids: newIds });
+    };
+
+    const availableSecondaryManagers = useMemo(() => {
+        return managers.filter(m => m.manager_id.toString() !== formData.main_responsible_manager_id);
+    }, [managers, formData.main_responsible_manager_id]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const dataToSave = {
             ...formData,
-            responsible_manager_id: formData.responsible_manager_id ? parseInt(formData.responsible_manager_id) : null,
+            main_responsible_manager_id: formData.main_responsible_manager_id ? parseInt(formData.main_responsible_manager_id) : null,
+            secondary_responsible_manager_ids: formData.secondary_responsible_manager_ids.map(id => parseInt(id)),
             counterparty_id: formData.counterparty_id ? parseInt(formData.counterparty_id) : null,
+            funnel_id: formData.funnel_id ? parseInt(formData.funnel_id) : null,
+            funnel_stage_id: formData.funnel_stage_id ? parseInt(formData.funnel_stage_id) : null,
             forecast_amount: Number(formData.forecast_amount) || 0,
         };
         if (project) {
@@ -47,23 +90,52 @@ const ProjectForm: React.FC<{
     const baseInputClasses = "w-full px-3 py-2 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white dark:bg-gray-800">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">{project ? 'Редагувати' : 'Додати'} проект</h3>
-                <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+            <div className="relative p-5 border w-full max-w-lg shadow-lg rounded-md bg-white dark:bg-gray-800">
+                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">{project ? 'Редагувати' : 'Додати'} проект</h3>
+                <form onSubmit={handleSubmit} className="space-y-4">
                     <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Назва проекту" required className={baseInputClasses}/>
                     <input type="number" name="forecast_amount" value={formData.forecast_amount} onChange={handleChange} placeholder="Прогнозована сума" required min="0" step="0.01" className={baseInputClasses}/>
                     <select name="counterparty_id" value={formData.counterparty_id} onChange={handleChange} className={baseInputClasses}>
                         <option value="">-- Контрагент --</option>
                         {counterparties.map(c => <option key={c.counterparty_id} value={c.counterparty_id}>{c.name}</option>)}
                     </select>
-                    <select name="responsible_manager_id" value={formData.responsible_manager_id} onChange={handleChange} className={baseInputClasses}>
-                        <option value="">-- Відповідальний менеджер --</option>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Головний відповідальний</label>
+                    <select name="main_responsible_manager_id" value={formData.main_responsible_manager_id} onChange={handleChange} className={baseInputClasses}>
+                        <option value="">-- Не вибрано --</option>
                         {managers.map(m => <option key={m.manager_id} value={m.manager_id}>{m.first_name} {m.last_name}</option>)}
                     </select>
-                     <select name="status" value={formData.status} onChange={handleChange} required className={baseInputClasses}>
-                        {projectStatuses.map(s => <option key={s.project_status_id} value={s.name}>{s.name}</option>)}
-                    </select>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Другорядні відповідальні</label>
+                        <div className="mt-1 border border-gray-300 dark:border-gray-600 rounded-md p-2 h-24 overflow-y-auto space-y-1">
+                            {availableSecondaryManagers.map(m => (
+                                <div key={m.manager_id} className="flex items-center">
+                                    <input
+                                        id={`sec-manager-form-${m.manager_id}`}
+                                        name="secondary_responsible_manager_ids"
+                                        type="checkbox"
+                                        value={m.manager_id.toString()}
+                                        checked={formData.secondary_responsible_manager_ids.includes(m.manager_id.toString())}
+                                        onChange={handleCheckboxChange}
+                                        className="h-4 w-4 text-indigo-600 border-gray-300 dark:border-gray-700 rounded focus:ring-indigo-500"
+                                    />
+                                    <label htmlFor={`sec-manager-form-${m.manager_id}`} className="ml-2 text-sm text-gray-700 dark:text-gray-200">
+                                        {m.first_name} {m.last_name}
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                     <div className="grid grid-cols-2 gap-4">
+                        <select name="funnel_id" value={formData.funnel_id} onChange={handleChange} required className={baseInputClasses}>
+                            {funnels.map(f => <option key={f.funnel_id} value={f.funnel_id}>{f.name}</option>)}
+                        </select>
+                        <select name="funnel_stage_id" value={formData.funnel_stage_id} onChange={handleChange} required className={baseInputClasses} disabled={availableStages.length === 0}>
+                            {availableStages.map(s => <option key={s.funnel_stage_id} value={s.funnel_stage_id}>{s.name}</option>)}
+                        </select>
+                    </div>
                     <div className="flex justify-end space-x-2 pt-4">
                         <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Скасувати</button>
                         <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Зберегти</button>
@@ -74,113 +146,178 @@ const ProjectForm: React.FC<{
     );
 };
 
+const ProjectCard: React.FC<{ project: Project }> = ({ project }) => {
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+        e.dataTransfer.setData("projectId", project.project_id.toString());
+    };
+
+    return (
+        <div
+            draggable
+            onDragStart={handleDragStart}
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-4 border-l-4 border-indigo-500 cursor-grab active:cursor-grabbing"
+        >
+            <Link to={`/projects/${project.project_id}`} className="font-semibold text-gray-800 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 break-words">
+                {project.name}
+            </Link>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{project.counterparty?.name || 'N/A'}</p>
+            <div className="flex justify-between items-center mt-3">
+                 <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {project.main_responsible_manager ? `${project.main_responsible_manager.first_name.charAt(0)}. ${project.main_responsible_manager.last_name}` : 'N/A'}
+                </p>
+                <div className="flex items-center space-x-3">
+                    <div className="flex items-center text-sm font-bold text-green-600 dark:text-green-400">
+                        <BanknotesIcon className="h-4 w-4 mr-1"/>
+                        <span>{(project.forecast_amount || 0).toLocaleString('uk-UA')}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const Projects: React.FC = () => {
     const [projects, setProjects] = useState<Project[]>([]);
     const [managers, setManagers] = useState<Manager[]>([]);
     const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
-    const [projectStatuses, setProjectStatuses] = useState<ProjectStatusType[]>([]);
+    const [funnels, setFunnels] = useState<Funnel[]>([]);
+    const [funnelStages, setFunnelStages] = useState<FunnelStage[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    const [selectedFunnelId, setSelectedFunnelId] = useState<string>('');
     const [filters, setFilters] = useState({
         counterparty_id: '',
         responsible_manager_id: '',
-        status: '',
     });
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [pData, mData, cData, psData] = await Promise.all([
+            const [pData, mData, cData, fData, fsData] = await Promise.all([
                 api.getAll<Project>('projects'),
                 api.getAll<Manager>('managers'),
                 api.getAll<Counterparty>('counterparties'),
-                api.getAll<ProjectStatusType>('projectStatuses')
+                api.getAll<Funnel>('funnels'),
+                api.getAll<FunnelStage>('funnelStages'),
             ]);
-            const projectsWithDetails = pData.map(p => ({
-                ...p,
-                responsible_manager: mData.find(m => m.manager_id === p.responsible_manager_id),
-                counterparty: cData.find(c => c.counterparty_id === p.counterparty_id)
-            }));
-            setProjects(projectsWithDetails);
+            setProjects(pData);
             setManagers(mData);
             setCounterparties(cData);
-            setProjectStatuses(psData);
+            setFunnels(fData);
+            setFunnelStages(fsData);
+
+            if (fData.length > 0 && !selectedFunnelId) {
+                setSelectedFunnelId(fData[0].funnel_id.toString());
+            }
         } catch (error) {
             console.error("Failed to fetch projects", error);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [selectedFunnelId]);
 
     useEffect(() => {
         fetchData();
     }, [fetchData]);
 
+    const activeStages = useMemo(() => {
+        return funnelStages.filter(s => s.funnel_id.toString() === selectedFunnelId).sort((a,b) => a.order - b.order);
+    }, [selectedFunnelId, funnelStages]);
+
     const filteredProjects = useMemo(() => {
         return projects.filter(p => {
+            const funnelMatch = p.funnel_id?.toString() === selectedFunnelId;
             const counterpartyMatch = filters.counterparty_id ? p.counterparty_id?.toString() === filters.counterparty_id : true;
-            const managerMatch = filters.responsible_manager_id ? p.responsible_manager_id?.toString() === filters.responsible_manager_id : true;
-            const statusMatch = filters.status ? p.status === filters.status : true;
-            return counterpartyMatch && managerMatch && statusMatch;
+            const managerMatch = filters.responsible_manager_id ? p.main_responsible_manager_id?.toString() === filters.responsible_manager_id : true;
+            return funnelMatch && counterpartyMatch && managerMatch;
         });
-    }, [projects, filters]);
+    }, [projects, filters, selectedFunnelId]);
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
     
     const resetFilters = () => {
-        setFilters({ counterparty_id: '', responsible_manager_id: '', status: '' });
+        setFilters({ counterparty_id: '', responsible_manager_id: '' });
     };
 
     const handleAdd = () => {
         setSelectedProject(null);
         setIsModalOpen(true);
     };
-
-    const handleEdit = (project: Project) => {
-        setSelectedProject(project);
-        setIsModalOpen(true);
-    };
-
-    const handleDelete = async (id: number) => {
-        if (window.confirm('Ви впевнені, що хочете видалити цей проект? Усі пов\'язані підпроекти та завдання також будуть видалені.')) {
-            await api.delete('projects', id);
-            fetchData();
-        }
-    };
-
+    
     const handleSave = () => {
         setIsModalOpen(false);
         fetchData();
     };
     
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = async (e: React.DragEvent<HTMLDivElement>, stageId: number) => {
+        e.preventDefault();
+        const projectId = parseInt(e.dataTransfer.getData("projectId"));
+        
+        const projectToMove = projects.find(p => p.project_id === projectId);
+        if (!projectToMove || projectToMove.funnel_stage_id === stageId) {
+            return; // No change needed
+        }
+        
+        // Optimistic UI update
+        const updatedProjects = projects.map(p =>
+            p.project_id === projectId ? { ...p, funnel_stage_id: stageId } : p
+        );
+        setProjects(updatedProjects);
+
+        try {
+            await api.update('projects', projectId, { funnel_stage_id: stageId });
+        } catch (error) {
+            console.error("Failed to update project stage", error);
+            // Revert on failure
+            setProjects(projects);
+            alert("Не вдалося оновити етап проекту.");
+        }
+    };
+
     const baseInputClasses = "w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
+    
+    if (loading) {
+        return <div>Завантаження...</div>
+    }
 
     return (
-        <div>
+        <div className="flex flex-col h-full">
             <PageHeader title="Проекти" buttonLabel="Додати проект" onButtonClick={handleAdd} />
-
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 flex items-center mb-4">
-                    <FunnelIcon className="h-5 w-5 mr-2" />
-                    Фільтри
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <select name="counterparty_id" value={filters.counterparty_id} onChange={handleFilterChange} className={baseInputClasses}>
-                        <option value="">Всі контрагенти</option>
-                        {counterparties.map(c => <option key={c.counterparty_id} value={c.counterparty_id}>{c.name}</option>)}
-                    </select>
-                    <select name="responsible_manager_id" value={filters.responsible_manager_id} onChange={handleFilterChange} className={baseInputClasses}>
-                        <option value="">Всі менеджери</option>
-                        {managers.map(m => <option key={m.manager_id} value={m.manager_id}>{m.first_name} {m.last_name}</option>)}
-                    </select>
-                    <select name="status" value={filters.status} onChange={handleFilterChange} className={baseInputClasses}>
-                        <option value="">Всі статуси</option>
-                        {projectStatuses.map(s => <option key={s.project_status_id} value={s.name}>{s.name}</option>)}
-                    </select>
+            
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md flex-shrink-0">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="md:col-span-1">
+                        <select
+                            value={selectedFunnelId}
+                            onChange={(e) => setSelectedFunnelId(e.target.value)}
+                            className={baseInputClasses}
+                        >
+                            {funnels.map(f => <option key={f.funnel_id} value={f.funnel_id}>{f.name}</option>)}
+                        </select>
+                    </div>
+                    <div className="md:col-span-3">
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                             <div className="flex items-center">
+                                <FunnelIcon className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" />
+                                <span className="text-sm font-medium mr-2 text-gray-600 dark:text-gray-300">Фільтри:</span>
+                            </div>
+                            <select name="counterparty_id" value={filters.counterparty_id} onChange={handleFilterChange} className={baseInputClasses}>
+                                <option value="">Всі контрагенти</option>
+                                {counterparties.map(c => <option key={c.counterparty_id} value={c.counterparty_id}>{c.name}</option>)}
+                            </select>
+                            <select name="responsible_manager_id" value={filters.responsible_manager_id} onChange={handleFilterChange} className={baseInputClasses}>
+                                <option value="">Всі менеджери</option>
+                                {managers.map(m => <option key={m.manager_id} value={m.manager_id}>{m.first_name} {m.last_name}</option>)}
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <div className="mt-4 flex justify-end">
                     <button
@@ -192,41 +329,39 @@ const Projects: React.FC = () => {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Назва проекту</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Контрагент</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Відповідальний</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Статус</th>
-                            <th scope="col" className="relative px-6 py-3"><span className="sr-only">Дії</span></th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {loading ? (
-                            <tr><td colSpan={5} className="text-center py-4">Завантаження...</td></tr>
-                        ) : (
-                            filteredProjects.map((p) => (
-                                <tr key={p.project_id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{p.counterparty?.name || 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{p.responsible_manager ? `${p.responsible_manager.first_name} ${p.responsible_manager.last_name}` : 'N/A'}</td>
-                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{p.status}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
-                                        <Link to={`/projects/${p.project_id}`} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Деталі</Link>
-                                        <button onClick={() => handleEdit(p)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"><PencilIcon className="h-5 w-5"/></button>
-                                        <button onClick={() => handleDelete(p.project_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"><TrashIcon className="h-5 w-5"/></button>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                        {!loading && filteredProjects.length === 0 && (
-                            <tr><td colSpan={5} className="text-center py-4 text-gray-500 dark:text-gray-400">Немає проектів, що відповідають фільтрам.</td></tr>
-                        )}
-                    </tbody>
-                </table>
+            <div className="flex-grow min-h-0 overflow-x-auto pb-4">
+                <div className="flex space-x-4 h-full">
+                    {activeStages.map(stage => {
+                        const projectsInStage = filteredProjects.filter(p => p.funnel_stage_id === stage.funnel_stage_id);
+                        const stageTotalAmount = projectsInStage.reduce((sum, p) => sum + p.forecast_amount, 0);
+
+                        return (
+                            <div
+                                key={stage.funnel_stage_id}
+                                className="w-80 bg-gray-100 dark:bg-gray-800/50 rounded-lg flex flex-col flex-shrink-0"
+                                onDragOver={handleDragOver}
+                                onDrop={(e) => handleDrop(e, stage.funnel_stage_id)}
+                            >
+                                <div className="p-3 font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 rounded-t-lg shadow-sm">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="text-sm uppercase tracking-wider">{stage.name}</h3>
+                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full">{projectsInStage.length}</span>
+                                    </div>
+                                    <p className="text-xs text-green-600 dark:text-green-500 font-bold mt-1">
+                                        {stageTotalAmount.toLocaleString('uk-UA')} грн
+                                    </p>
+                                </div>
+                                <div className="p-2 flex-grow overflow-y-auto">
+                                    {projectsInStage.map(p => (
+                                        <ProjectCard key={p.project_id} project={p} />
+                                    ))}
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
             </div>
+
              {isModalOpen && (
                 <ProjectForm
                     project={selectedProject}
@@ -234,7 +369,8 @@ const Projects: React.FC = () => {
                     onCancel={() => setIsModalOpen(false)}
                     managers={managers}
                     counterparties={counterparties}
-                    projectStatuses={projectStatuses}
+                    funnels={funnels}
+                    funnelStages={funnelStages}
                 />
             )}
         </div>

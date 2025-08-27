@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
-import { Manager, Unit, SaleStatusType, ProjectStatusType, SubProjectStatusType, Warehouse } from '../types';
+import { Manager, Unit, SaleStatusType, SubProjectStatusType, Warehouse, Funnel, FunnelStage } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PencilIcon, TrashIcon, PlusIcon } from '../components/Icons';
 
@@ -265,12 +265,170 @@ const WarehousesTabContent: React.FC = () => {
 };
 
 
+// --- Funnels Management ---
+const FunnelsTabContent: React.FC = () => {
+    const [funnels, setFunnels] = useState<Funnel[]>([]);
+    const [funnelStages, setFunnelStages] = useState<FunnelStage[]>([]);
+    const [selectedFunnel, setSelectedFunnel] = useState<Funnel | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    const [modalState, setModalState] = useState<{ type: 'funnel' | 'stage'; item: Funnel | FunnelStage | null }>({ type: 'funnel', item: null });
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [name, setName] = useState('');
+
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [funnelsData, stagesData] = await Promise.all([
+                api.getAll<Funnel>('funnels'),
+                api.getAll<FunnelStage>('funnelStages'),
+            ]);
+            setFunnels(funnelsData);
+            setFunnelStages(stagesData);
+            if (!selectedFunnel && funnelsData.length > 0) {
+                setSelectedFunnel(funnelsData[0]);
+            } else if (selectedFunnel) {
+                // Reselect the funnel to update its data if it was edited
+                setSelectedFunnel(funnelsData.find(f => f.funnel_id === selectedFunnel.funnel_id) || null);
+            }
+        } catch (error) {
+            console.error("Failed to fetch funnels data", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedFunnel]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const handleOpenModal = (type: 'funnel' | 'stage', item: Funnel | FunnelStage | null = null) => {
+        setModalState({ type, item });
+        setName(item ? (item as any).name : '');
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => setIsModalOpen(false);
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (modalState.type === 'funnel') {
+            if (modalState.item) {
+                await api.update('funnels', (modalState.item as Funnel).funnel_id, { name });
+            } else {
+                await api.create('funnels', { name });
+            }
+        } else if (modalState.type === 'stage' && selectedFunnel) {
+             if (modalState.item) {
+                await api.update('funnelStages', (modalState.item as FunnelStage).funnel_stage_id, { name });
+            } else {
+                const maxOrder = Math.max(0, ...funnelStages.filter(s => s.funnel_id === selectedFunnel.funnel_id).map(s => s.order));
+                await api.create('funnelStages', { name, funnel_id: selectedFunnel.funnel_id, order: maxOrder + 1 });
+            }
+        }
+        handleCloseModal();
+        fetchData();
+    };
+
+    const handleDelete = async (type: 'funnel' | 'stage', id: number) => {
+        const entity = type === 'funnel' ? 'funnels' : 'funnelStages';
+        const confirmText = type === 'funnel' ? 'воронку (разом з усіма її етапами)?' : 'етап?';
+        if (window.confirm(`Ви впевнені, що хочете видалити цю ${confirmText}`)) {
+            await api.delete(entity, id);
+            if(type === 'funnel' && selectedFunnel?.funnel_id === id) {
+                setSelectedFunnel(null);
+            }
+            fetchData();
+        }
+    };
+    
+    const stagesForSelectedFunnel = selectedFunnel ? funnelStages.filter(s => s.funnel_id === selectedFunnel.funnel_id).sort((a,b)=> a.order - b.order) : [];
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+                 <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Воронки</h3>
+                    <button onClick={() => handleOpenModal('funnel')} className="p-1.5 text-indigo-600 bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-900/50 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-900">
+                        <PlusIcon className="h-5 w-5" />
+                    </button>
+                 </div>
+                 <ul className="space-y-2">
+                     {funnels.map(f => (
+                         <li key={f.funnel_id}
+                             onClick={() => setSelectedFunnel(f)}
+                             className={`p-2 rounded-md cursor-pointer flex justify-between items-center ${selectedFunnel?.funnel_id === f.funnel_id ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}
+                         >
+                            <span className="font-medium text-gray-800 dark:text-gray-200">{f.name}</span>
+                             <div className="space-x-2 opacity-0 group-hover:opacity-100" style={{ opacity: selectedFunnel?.funnel_id === f.funnel_id ? 1 : ''}}>
+                                 <button onClick={(e) => { e.stopPropagation(); handleOpenModal('funnel', f); }} className="text-blue-500 hover:text-blue-700"><PencilIcon className="h-4 w-4"/></button>
+                                 <button onClick={(e) => { e.stopPropagation(); handleDelete('funnel', f.funnel_id); }} className="text-red-500 hover:text-red-700"><TrashIcon className="h-4 w-4"/></button>
+                             </div>
+                         </li>
+                     ))}
+                 </ul>
+            </div>
+             <div className="md:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+                {selectedFunnel ? (
+                    <div>
+                         <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Етапи воронки: <span className="text-indigo-600 dark:text-indigo-400">{selectedFunnel.name}</span></h3>
+                            <button onClick={() => handleOpenModal('stage')} className="p-1.5 text-indigo-600 bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-900/50 rounded-md hover:bg-indigo-200 dark:hover:bg-indigo-900">
+                                <PlusIcon className="h-5 w-5" />
+                            </button>
+                         </div>
+                         <ul className="space-y-2">
+                             {stagesForSelectedFunnel.map(s => (
+                                 <li key={s.funnel_stage_id} className="p-2 rounded-md bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center group">
+                                     <span className="font-medium text-gray-800 dark:text-gray-200">{s.name}</span>
+                                     <div className="space-x-2 opacity-0 group-hover:opacity-100">
+                                        <button onClick={() => handleOpenModal('stage', s)} className="text-blue-500 hover:text-blue-700"><PencilIcon className="h-4 w-4"/></button>
+                                        <button onClick={() => handleDelete('stage', s.funnel_stage_id)} className="text-red-500 hover:text-red-700"><TrashIcon className="h-4 w-4"/></button>
+                                    </div>
+                                 </li>
+                             ))}
+                             {stagesForSelectedFunnel.length === 0 && <p className="text-gray-500 dark:text-gray-400 text-sm">Немає етапів. Додайте перший.</p>}
+                         </ul>
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-center h-full">
+                        <p className="text-gray-500 dark:text-gray-400">Оберіть воронку для перегляду її етапів</p>
+                    </div>
+                )}
+            </div>
+            {isModalOpen && (
+                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                    <div className="relative p-5 border w-full max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
+                        <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">{modalState.item ? 'Редагувати' : 'Додати'} {modalState.type === 'funnel' ? 'воронку' : 'етап'}</h3>
+                        <form onSubmit={handleSave} className="mt-4 space-y-4">
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="Назва"
+                                required
+                                autoFocus
+                                className="w-full px-3 py-2 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                            <div className="flex justify-end space-x-2 pt-4">
+                                <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Скасувати</button>
+                                <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Зберегти</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+};
+
+
 // --- Dictionary Management ---
 const DictionaryManager: React.FC<{
     title: string;
-    entity: 'units' | 'saleStatuses' | 'projectStatuses' | 'subProjectStatuses';
+    entity: 'units' | 'saleStatuses' | 'subProjectStatuses';
 }> = ({ title, entity }) => {
-    const [items, setItems] = useState<(Unit | SaleStatusType | ProjectStatusType | SubProjectStatusType)[]>([]);
+    const [items, setItems] = useState<(Unit | SaleStatusType | SubProjectStatusType)[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentItem, setCurrentItem] = useState<any | null>(null);
@@ -279,7 +437,6 @@ const DictionaryManager: React.FC<{
     const idKey = {
         'units': 'unit_id',
         'saleStatuses': 'sale_status_id',
-        'projectStatuses': 'project_status_id',
         'subProjectStatuses': 'sub_project_status_id',
     }[entity];
 
@@ -399,7 +556,6 @@ const DictionariesTabContent: React.FC = () => {
         <div className="space-y-8">
             <DictionaryManager title="Одиниці виміру" entity="units" />
             <DictionaryManager title="Статуси продажів" entity="saleStatuses" />
-            <DictionaryManager title="Статуси проектів" entity="projectStatuses" />
             <DictionaryManager title="Статуси підпроектів" entity="subProjectStatuses" />
         </div>
     );
@@ -429,6 +585,9 @@ const Settings: React.FC = () => {
                      <button onClick={() => setActiveTab('warehouses')} className={getTabClassName('warehouses')}>
                         Склади
                     </button>
+                     <button onClick={() => setActiveTab('funnels')} className={getTabClassName('funnels')}>
+                        Воронки
+                    </button>
                     <button onClick={() => setActiveTab('dictionaries')} className={getTabClassName('dictionaries')}>
                         Довідники
                     </button>
@@ -438,6 +597,7 @@ const Settings: React.FC = () => {
             <div>
                 {activeTab === 'managers' && <ManagersTabContent />}
                 {activeTab === 'warehouses' && <WarehousesTabContent />}
+                {activeTab === 'funnels' && <FunnelsTabContent />}
                 {activeTab === 'dictionaries' && <DictionariesTabContent />}
             </div>
         </div>

@@ -1,5 +1,5 @@
 
-import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, ProjectStatusType, SubProjectStatusType, ProjectProduct, ProjectService, ProjectComment, ProductStock } from '../types';
+import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, SubProjectStatusType, ProjectProduct, ProjectService, ProjectComment, ProductStock, Funnel, FunnelStage } from '../types';
 
 // In-memory database
 let managers: Manager[] = [
@@ -45,11 +45,28 @@ let saleStatuses: SaleStatusType[] = [
     { sale_status_id: 3, name: 'Оплачено' },
 ];
 
-let projectStatuses: ProjectStatusType[] = [
-    { project_status_id: 1, name: 'Новий' },
-    { project_status_id: 2, name: 'В роботі' },
-    { project_status_id: 3, name: 'Завершено' },
+let funnels: Funnel[] = [
+  { funnel_id: 1, name: 'Стандартний продаж' },
+  { funnel_id: 2, name: 'Розробка ПЗ' },
 ];
+
+let funnelStages: FunnelStage[] = [
+  // Stages for Funnel 1
+  { funnel_stage_id: 1, name: 'Новий', funnel_id: 1, order: 1 },
+  { funnel_stage_id: 2, name: 'Кваліфікація', funnel_id: 1, order: 2 },
+  { funnel_stage_id: 3, name: 'Пропозиція', funnel_id: 1, order: 3 },
+  { funnel_stage_id: 4, name: 'Переговори', funnel_id: 1, order: 4 },
+  { funnel_stage_id: 5, name: 'Успішно завершено', funnel_id: 1, order: 5 },
+  { funnel_stage_id: 6, name: 'Програно', funnel_id: 1, order: 6 },
+  
+  // Stages for Funnel 2
+  { funnel_stage_id: 7, name: 'Аналіз вимог', funnel_id: 2, order: 1 },
+  { funnel_stage_id: 8, name: 'Проектування', funnel_id: 2, order: 2 },
+  { funnel_stage_id: 9, name: 'Розробка', funnel_id: 2, order: 3 },
+  { funnel_stage_id: 10, name: 'Тестування', funnel_id: 2, order: 4 },
+  { funnel_stage_id: 11, name: 'Реліз', funnel_id: 2, order: 5 },
+];
+
 
 let subProjectStatuses: SubProjectStatusType[] = [
     { sub_project_status_id: 1, name: 'Заплановано' },
@@ -75,8 +92,10 @@ let sales_services: { sale_id: number; service_id: number }[] = [
     { sale_id: 2, service_id: 2 },
 ];
 
-let projects: Omit<Project, 'responsible_manager' | 'counterparty' | 'subprojects' | 'tasks' | 'sales' | 'project_products' | 'project_services' | 'comments'>[] = [
-    { project_id: 1, name: 'Розробка нового сайту', responsible_manager_id: 2, counterparty_id: 1, status: 'В роботі', forecast_amount: 5000 },
+let projects: Omit<Project, 'main_responsible_manager' | 'secondary_responsible_managers' | 'counterparty' | 'subprojects' | 'tasks' | 'sales' | 'project_products' | 'project_services' | 'comments' | 'funnel' | 'funnel_stage'>[] = [
+    { project_id: 1, name: 'Розробка нового сайту', description: 'Створити сучасний та адаптивний веб-сайт для клієнта з інтеграцією платіжної системи. Використовувати React для фронтенду та Node.js для бекенду.', main_responsible_manager_id: 2, secondary_responsible_manager_ids: [1], counterparty_id: 1, forecast_amount: 5000, funnel_id: 2, funnel_stage_id: 9 },
+    { project_id: 2, name: 'Продаж партії серверів', description: 'Поставка та налаштування 10 серверів Dell PowerEdge для дата-центру клієнта. Включає встановлення ОС та базове налаштування мережі.', main_responsible_manager_id: 1, secondary_responsible_manager_ids: [], counterparty_id: 2, forecast_amount: 15000, funnel_id: 1, funnel_stage_id: 3 },
+    { project_id: 3, name: 'Впровадження CRM', description: '', main_responsible_manager_id: 2, secondary_responsible_manager_ids: [1], counterparty_id: 1, forecast_amount: 8000, funnel_id: 2, funnel_stage_id: 7 },
 ];
 
 let subprojects: SubProject[] = [
@@ -116,7 +135,8 @@ const db = {
     tasks,
     units,
     saleStatuses,
-    projectStatuses,
+    funnels,
+    funnelStages,
     subProjectStatuses,
     project_products,
     project_services,
@@ -139,7 +159,8 @@ const getIdKeyForEntity = (entity: Entity): string => {
         case 'warehouses': return 'warehouse_id';
         case 'productStocks': return 'product_stock_id';
         case 'saleStatuses': return 'sale_status_id';
-        case 'projectStatuses': return 'project_status_id';
+        case 'funnels': return 'funnel_id';
+        case 'funnelStages': return 'funnel_stage_id';
         case 'subProjectStatuses': return 'sub_project_status_id';
         case 'sales': return 'sale_id';
         case 'projects': return 'project_id';
@@ -185,6 +206,16 @@ const api = {
               total_price: productsTotal + servicesTotal,
             };
           }) as T[];
+        }
+        if (entity === 'projects') {
+             return db.projects.map(p => ({
+                ...p,
+                main_responsible_manager: db.managers.find(m => m.manager_id === p.main_responsible_manager_id),
+                secondary_responsible_managers: (p.secondary_responsible_manager_ids || []).map(id => db.managers.find(m => m.manager_id === id)).filter((m): m is Manager => !!m),
+                counterparty: db.counterparties.find(c => c.counterparty_id === p.counterparty_id),
+                funnel: db.funnels.find(f => f.funnel_id === p.funnel_id),
+                funnel_stage: db.funnelStages.find(fs => fs.funnel_stage_id === p.funnel_stage_id),
+            })) as T[];
         }
         if (entity === 'products') {
             return db.products.map(p => {
@@ -264,8 +295,11 @@ const api = {
 
              return {
                 ...project,
-                responsible_manager: db.managers.find(m => m.manager_id === project.responsible_manager_id),
+                main_responsible_manager: db.managers.find(m => m.manager_id === project.main_responsible_manager_id),
+                secondary_responsible_managers: (project.secondary_responsible_manager_ids || []).map(id => db.managers.find(m => m.manager_id === id)).filter((m): m is Manager => !!m),
                 counterparty: db.counterparties.find(c => c.counterparty_id === project.counterparty_id),
+                funnel: db.funnels.find(f => f.funnel_id === project.funnel_id),
+                funnel_stage: db.funnelStages.find(fs => fs.funnel_stage_id === project.funnel_stage_id),
                 subprojects: db.subprojects.filter(sp => sp.project_id === id),
                 tasks: db.tasks.filter(t => t.project_id === id).map(t => ({
                     ...t,
@@ -353,6 +387,26 @@ const api = {
             // Cascade delete project products/services
             db.project_products = db.project_products.filter(pp => pp.project_id !== id);
             db.project_services = db.project_services.filter(ps => ps.project_id !== id);
+        }
+        
+        if (entity === 'funnels') {
+            // Cascade delete funnel stages and unlink projects
+             db.funnelStages = db.funnelStages.filter(fs => fs.funnel_id !== id);
+             db.projects.forEach(p => {
+                 if (p.funnel_id === id) {
+                     p.funnel_id = null;
+                     p.funnel_stage_id = null;
+                 }
+             })
+        }
+        
+        if (entity === 'funnelStages') {
+            // Unlink projects from stage
+            db.projects.forEach(p => {
+                if(p.funnel_stage_id === id) {
+                    p.funnel_stage_id = null;
+                }
+            })
         }
 
         // @ts-ignore
