@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { HomeIcon, BuildingOfficeIcon, CubeIcon, WrenchScrewdriverIcon, ShoppingCartIcon, BriefcaseIcon, ChartBarIcon, Cog6ToothIcon, ClipboardDocumentListIcon, ViewColumnsIcon } from './Icons';
 import { useAuth } from '../contexts/AuthContext';
+import ThemeToggle from './ThemeToggle';
 
 const navigationItems = [
   { name: 'Дашборд', href: '/', icon: HomeIcon },
@@ -18,9 +19,9 @@ const navigationItems = [
 const Sidebar: React.FC = () => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
-  const linkClasses = 'flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors';
-  const inactiveClasses = 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800';
-  const activeClasses = 'bg-indigo-600 text-white shadow-lg';
+  const linkClasses = 'flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-300';
+  const inactiveClasses = 'nav-link-inactive';
+  const activeClasses = 'nav-link-active';
   
   const handleLogout = () => {
     logout();
@@ -44,11 +45,11 @@ const Sidebar: React.FC = () => {
   });
 
   return (
-    <aside className="w-64 flex-shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-      <div className="h-16 flex items-center justify-center px-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-2">
-            <ChartBarIcon className="h-8 w-8 text-indigo-600" />
-            <span className="text-xl font-bold text-gray-900 dark:text-white">CRM System</span>
+    <aside className="sidebar-container w-64 flex-shrink-0 flex flex-col m-4 rounded-2xl shadow-2xl">
+      <div className="h-20 flex items-center justify-center px-4">
+        <div className="flex items-center space-x-3">
+            <ChartBarIcon className="h-8 w-8 text-[var(--brand-secondary)]" />
+            <span className="text-xl font-bold text-[var(--text-primary)] tracking-wider">Glass CRM</span>
         </div>
       </div>
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
@@ -65,16 +66,19 @@ const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-       <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-        {currentUser && (
-            <div className="mb-4">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">{currentUser.first_name} {currentUser.last_name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{getRoleName(currentUser.role)}</p>
-            </div>
-        )}
+       <div className="p-4 border-t border-[var(--glass-border)]">
+        <div className="flex justify-between items-center mb-4">
+            {currentUser && (
+                <div className="text-left">
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">{currentUser.first_name} {currentUser.last_name}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">{getRoleName(currentUser.role)}</p>
+                </div>
+            )}
+            <ThemeToggle />
+        </div>
         <button
             onClick={handleLogout}
-            className="w-full px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            className="w-full px-4 py-2 text-sm font-medium text-white bg-red-600/50 rounded-md border border-red-500/50 hover:bg-red-600/80 hover:border-red-500 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--sidebar-bg)] focus:ring-red-500"
         >
             Вийти
         </button>

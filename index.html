@@ -1,11 +1,10 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Modern CRM System</title>
+    <title>Glassmorphic CRM</title>
     <script src="https://cdn.tailwindcss.com"></script>
   <script type="importmap">
 {
@@ -17,8 +16,239 @@
   }
 }
 </script>
+<style>
+  /* --- THEME VARIABLES --- */
+  :root, [data-theme="dark"] {
+    --bg-image: url('https://images.pexels.com/photos/1252890/pexels-photo-1252890.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2');
+    --bg-color: #0b0f19;
+    --text-primary: #e5e7eb;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    --text-brand: #a5b4fc;
+    --text-inverted: #111827;
+
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: rgba(0, 0, 0, 0.37);
+
+    --card-bg-opaque: #1f2937;
+    --table-header-bg: rgba(255, 255, 255, 0.05);
+    --table-row-hover-bg: rgba(255, 255, 255, 0.05);
+    --table-divide-color: rgba(255, 255, 255, 0.1);
+
+    --input-bg: rgba(255, 255, 255, 0.08);
+    --input-border: rgba(255, 255, 255, 0.2);
+    --input-text: #e5e7eb;
+    --input-focus-border: rgba(99, 102, 241, 0.7);
+    --input-focus-shadow: rgba(99, 102, 241, 0.3);
+
+    --sidebar-bg: rgba(0, 0, 0, 0.3);
+    --nav-link-inactive-text: #d1d5db;
+    --nav-link-hover-bg: rgba(255, 255, 255, 0.1);
+    --nav-link-hover-text: #ffffff;
+    --nav-link-active-bg: rgba(255, 255, 255, 0.2);
+    --nav-link-active-text: #ffffff;
+    
+    --hover-bg: rgba(255, 255, 255, 0.1);
+
+    --brand-primary: #6366f1;
+    --brand-secondary: #818cf8;
+    --brand-bg-translucent: rgba(99, 102, 241, 0.5);
+    --brand-border-translucent: rgba(129, 140, 248, 0.5);
+    --brand-bg-hover: rgba(99, 102, 241, 0.8);
+
+    --scrollbar-track: rgba(255, 255, 255, 0.1);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.3);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.5);
+    
+    --modal-backdrop-bg: rgba(0, 0, 0, 0.5);
+    --select-option-bg: #1f2937;
+  }
+
+  [data-theme="light"] {
+    --bg-image: url('https://drive.google.com/uc?export=view&id=10jwqn4nZN18cY_IE6nGDUm26kFQPzBq7');
+    --bg-color: #e0f2fe;
+    --text-primary: #1f2937;
+    --text-secondary: #4b5563;
+    --text-muted: #6b7280;
+    --text-brand: #4f46e5;
+    --text-inverted: #ffffff;
+
+    --glass-bg: rgba(255, 255, 255, 0.4);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --glass-shadow: rgba(0, 0, 0, 0.1);
+
+    --card-bg-opaque: #ffffff;
+    --table-header-bg: rgba(0, 0, 0, 0.03);
+    --table-row-hover-bg: rgba(0, 0, 0, 0.04);
+    --table-divide-color: rgba(0, 0, 0, 0.08);
+
+    --input-bg: rgba(255, 255, 255, 0.5);
+    --input-border: rgba(209, 213, 219, 0.7);
+    --input-text: #1f2937;
+    --input-focus-border: #4f46e5;
+    --input-focus-shadow: rgba(79, 70, 229, 0.2);
+
+    --sidebar-bg: rgba(255, 255, 255, 0.3);
+    --nav-link-inactive-text: #374151;
+    --nav-link-hover-bg: rgba(0, 0, 0, 0.05);
+    --nav-link-hover-text: #111827;
+    --nav-link-active-bg: #4f46e5;
+    --nav-link-active-text: #ffffff;
+
+    --hover-bg: rgba(0, 0, 0, 0.05);
+
+    --brand-primary: #4f46e5;
+    --brand-secondary: #6366f1;
+    --brand-bg-translucent: rgba(79, 70, 229, 0.8);
+    --brand-border-translucent: rgba(99, 102, 241, 0.8);
+    --brand-bg-hover: #4338ca;
+
+    --scrollbar-track: rgba(0, 0, 0, 0.06);
+    --scrollbar-thumb: rgba(0, 0, 0, 0.3);
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.5);
+
+    --modal-backdrop-bg: rgba(255, 255, 255, 0.3);
+    --select-option-bg: #ffffff;
+  }
+  
+  /* --- BASE STYLES --- */
+  html {
+    /* The ::before pseudo-element handles the background.
+       HTML element itself is transparent. Position is for stacking context. */
+    background-color: transparent;
+    position: relative;
+    z-index: 0;
+  }
+
+  /* The ::before pseudo-element for the html tag holds the background image
+     and a fallback color. Using z-index: -1 places this behind all content. */
+  html::before {
+    content: '';
+    position: fixed; /* Cover the entire viewport */
+    inset: 0;
+    z-index: -1; /* Place it behind the html content (i.e., the body) */
+    
+    /* Background properties */
+    background-color: var(--bg-color); /* Fallback color */
+    background-image: var(--bg-image);
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    transition: background-image 0.5s ease-in-out, opacity 0.5s ease-in-out;
+  }
+  
+  body {
+    /* Body must be transparent to see the html::before background */
+    background-color: transparent !important;
+    color: var(--text-primary);
+    transition: color 0.5s ease-in-out;
+  }
+
+  /* --- Custom Glass & Animation Styles --- */
+  @keyframes modal-pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+  
+  .modal-animate {
+    animation: modal-pop-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  .sheen-effect {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .sheen-effect::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.2), transparent 75%);
+    transition: left 0.6s ease-in-out;
+  }
+  
+  .sheen-effect:hover::before {
+    left: 150%;
+  }
+
+  /* --- Custom Scrollbar Styling --- */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  /* --- Component Styles using Variables --- */
+  .glass-pane {
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px 0 var(--glass-shadow);
+    color: var(--text-primary);
+  }
+
+  .glass-input {
+    background-color: var(--input-bg) !important;
+    border: 1px solid var(--input-border) !important;
+    color: var(--input-text) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .glass-input:focus {
+     border-color: var(--input-focus-border) !important;
+     box-shadow: 0 0 0 2px var(--input-focus-shadow);
+  }
+  .glass-input::placeholder {
+    color: var(--text-secondary);
+  }
+  select.glass-input option {
+    background-color: var(--select-option-bg);
+    color: var(--text-primary);
+  }
+
+  .sidebar-container {
+    background-color: var(--sidebar-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-right: 1px solid var(--glass-border);
+  }
+
+  .nav-link-inactive {
+    color: var(--nav-link-inactive-text);
+  }
+  .nav-link-inactive:hover {
+    background-color: var(--nav-link-hover-bg);
+    color: var(--nav-link-hover-text);
+  }
+  .nav-link-active {
+    background-color: var(--nav-link-active-bg);
+    color: var(--nav-link-active-text);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+</style>
 </head>
-  <body class="bg-gray-100 dark:bg-gray-900">
+  <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Manager, Counterparty, Sale, Project } from '../types';
@@ -11,13 +10,13 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 flex items-center justify-between">
+  <div className="glass-pane sheen-effect rounded-xl p-6 flex items-center justify-between transform hover:-translate-y-1 transition-transform duration-300">
     <div>
-      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
-      <p className="text-3xl font-bold text-gray-900 dark:text-white">{value}</p>
+      <p className="text-sm font-medium text-[var(--text-secondary)]">{title}</p>
+      <p className="text-3xl font-bold text-[var(--text-primary)]">{value}</p>
     </div>
-    <div className="bg-indigo-100 dark:bg-indigo-900/50 rounded-full p-3">
-      <Icon className="h-7 w-7 text-indigo-600 dark:text-indigo-400" />
+    <div className="bg-indigo-500/20 rounded-full p-3">
+      <Icon className="h-7 w-7 text-[var(--text-brand)]" />
     </div>
   </div>
 );
@@ -54,12 +53,12 @@ const Dashboard: React.FC = () => {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Дашборд</h1>
+      <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-8" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>Дашборд</h1>
       
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {Array.from({length: 4}).map((_, i) => (
-                <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 h-28 animate-pulse"></div>
+                <div key={i} className="glass-pane rounded-xl p-6 h-32 animate-pulse"></div>
             ))}
         </div>
       ) : (
@@ -71,9 +70,9 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      <div className="mt-10 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Ласкаво просимо до CRM System</h2>
-        <p className="text-gray-600 dark:text-gray-300">
+      <div className="mt-10 glass-pane rounded-xl p-8">
+        <h2 className="text-xl font-semibold mb-4 text-[var(--text-primary)]">Ласкаво просимо до CRM System</h2>
+        <p className="text-[var(--text-secondary)]">
           Використовуйте навігацію зліва для управління різними аспектами вашого бізнесу.
           Ви можете додавати, редагувати та видаляти записи для менеджерів, контрагентів, товарів, послуг, продажів та проектів.
         </p>

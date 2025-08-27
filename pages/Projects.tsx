@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
@@ -87,12 +88,12 @@ const ProjectForm: React.FC<{
         onSave();
     };
     
-    const baseInputClasses = "w-full px-3 py-2 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
+    const baseInputClasses = "w-full px-3 py-2 rounded-md focus:outline-none glass-input";
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-            <div className="relative p-5 border w-full max-w-lg shadow-lg rounded-md bg-white dark:bg-gray-800">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">{project ? 'Редагувати' : 'Додати'} проект</h3>
+        <div className="fixed inset-0 bg-[var(--modal-backdrop-bg)] backdrop-blur-md overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+            <div className="modal-animate relative p-6 border w-full max-w-lg shadow-lg rounded-2xl glass-pane">
+                <h3 className="text-lg font-medium leading-6 text-[var(--text-primary)] mb-4">{project ? 'Редагувати' : 'Додати'} проект</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Назва проекту" required className={baseInputClasses}/>
                     <input type="number" name="forecast_amount" value={formData.forecast_amount} onChange={handleChange} placeholder="Прогнозована сума" required min="0" step="0.01" className={baseInputClasses}/>
@@ -100,15 +101,15 @@ const ProjectForm: React.FC<{
                         <option value="">-- Контрагент --</option>
                         {counterparties.map(c => <option key={c.counterparty_id} value={c.counterparty_id}>{c.name}</option>)}
                     </select>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Головний відповідальний</label>
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">Головний відповідальний</label>
                     <select name="main_responsible_manager_id" value={formData.main_responsible_manager_id} onChange={handleChange} className={baseInputClasses}>
                         <option value="">-- Не вибрано --</option>
                         {managers.map(m => <option key={m.manager_id} value={m.manager_id}>{m.first_name} {m.last_name}</option>)}
                     </select>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Другорядні відповідальні</label>
-                        <div className="mt-1 border border-gray-300 dark:border-gray-600 rounded-md p-2 h-24 overflow-y-auto space-y-1">
+                        <label className="block text-sm font-medium text-[var(--text-secondary)]">Другорядні відповідальні</label>
+                        <div className="mt-1 border border-[var(--input-border)] rounded-md p-2 h-24 overflow-y-auto space-y-1 bg-[var(--input-bg)]">
                             {availableSecondaryManagers.map(m => (
                                 <div key={m.manager_id} className="flex items-center">
                                     <input
@@ -118,9 +119,9 @@ const ProjectForm: React.FC<{
                                         value={m.manager_id.toString()}
                                         checked={formData.secondary_responsible_manager_ids.includes(m.manager_id.toString())}
                                         onChange={handleCheckboxChange}
-                                        className="h-4 w-4 text-indigo-600 border-gray-300 dark:border-gray-700 rounded focus:ring-indigo-500"
+                                        className="h-4 w-4 text-[var(--brand-primary)] bg-transparent border-[var(--input-border)] rounded focus:ring-[var(--brand-secondary)]"
                                     />
-                                    <label htmlFor={`sec-manager-form-${m.manager_id}`} className="ml-2 text-sm text-gray-700 dark:text-gray-200">
+                                    <label htmlFor={`sec-manager-form-${m.manager_id}`} className="ml-2 text-sm text-[var(--text-primary)]">
                                         {m.first_name} {m.last_name}
                                     </label>
                                 </div>
@@ -137,8 +138,8 @@ const ProjectForm: React.FC<{
                         </select>
                     </div>
                     <div className="flex justify-end space-x-2 pt-4">
-                        <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Скасувати</button>
-                        <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Зберегти</button>
+                        <button type="button" onClick={onCancel} className="px-4 py-2 bg-white/10 text-[var(--text-primary)] rounded-md hover:bg-white/20">Скасувати</button>
+                        <button type="submit" className="px-4 py-2 bg-[var(--brand-primary)] text-white rounded-md hover:bg-[var(--brand-bg-hover)]">Зберегти</button>
                     </div>
                 </form>
             </div>
@@ -155,18 +156,18 @@ const ProjectCard: React.FC<{ project: Project }> = ({ project }) => {
         <div
             draggable
             onDragStart={handleDragStart}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-4 border-l-4 border-indigo-500 cursor-grab active:cursor-grabbing"
+            className="glass-pane rounded-lg p-4 mb-4 border-l-4 border-[var(--brand-secondary)] cursor-grab active:cursor-grabbing transform hover:-translate-y-1 transition-transform duration-200"
         >
-            <Link to={`/projects/${project.project_id}`} className="font-semibold text-gray-800 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 break-words">
+            <Link to={`/projects/${project.project_id}`} className="font-semibold text-[var(--text-primary)] hover:text-[var(--brand-secondary)] break-words">
                 {project.name}
             </Link>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{project.counterparty?.name || 'N/A'}</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-2">{project.counterparty?.name || 'N/A'}</p>
             <div className="flex justify-between items-center mt-3">
-                 <p className="text-xs text-gray-500 dark:text-gray-400">
+                 <p className="text-xs text-[var(--text-muted)]">
                     {project.main_responsible_manager ? `${project.main_responsible_manager.first_name.charAt(0)}. ${project.main_responsible_manager.last_name}` : 'N/A'}
                 </p>
                 <div className="flex items-center space-x-3">
-                    <div className="flex items-center text-sm font-bold text-green-600 dark:text-green-400">
+                    <div className="flex items-center text-sm font-bold text-green-400">
                         <BanknotesIcon className="h-4 w-4 mr-1"/>
                         <span>{(project.forecast_amount || 0).toLocaleString('uk-UA')}</span>
                     </div>
@@ -281,7 +282,7 @@ const Projects: React.FC = () => {
         }
     };
 
-    const baseInputClasses = "w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
+    const baseInputClasses = "w-full px-3 py-2 text-sm rounded-md focus:outline-none glass-input";
     
     if (loading) {
         return <div>Завантаження...</div>
@@ -291,7 +292,7 @@ const Projects: React.FC = () => {
         <div className="flex flex-col h-full">
             <PageHeader title="Проекти" buttonLabel="Додати проект" onButtonClick={handleAdd} />
             
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md flex-shrink-0">
+            <div className="mb-6 p-4 glass-pane rounded-xl flex-shrink-0">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="md:col-span-1">
                         <select
@@ -305,8 +306,8 @@ const Projects: React.FC = () => {
                     <div className="md:col-span-3">
                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                              <div className="flex items-center">
-                                <FunnelIcon className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" />
-                                <span className="text-sm font-medium mr-2 text-gray-600 dark:text-gray-300">Фільтри:</span>
+                                <FunnelIcon className="h-5 w-5 mr-2 text-[var(--text-secondary)]" />
+                                <span className="text-sm font-medium mr-2 text-[var(--text-secondary)]">Фільтри:</span>
                             </div>
                             <select name="counterparty_id" value={filters.counterparty_id} onChange={handleFilterChange} className={baseInputClasses}>
                                 <option value="">Всі контрагенти</option>
@@ -322,7 +323,7 @@ const Projects: React.FC = () => {
                 <div className="mt-4 flex justify-end">
                     <button
                         onClick={resetFilters}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 border border-transparent rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] bg-white/10 border border-transparent rounded-md hover:bg-white/20"
                     >
                         Скинути фільтри
                     </button>
@@ -338,16 +339,16 @@ const Projects: React.FC = () => {
                         return (
                             <div
                                 key={stage.funnel_stage_id}
-                                className="w-80 bg-gray-100 dark:bg-gray-800/50 rounded-lg flex flex-col flex-shrink-0"
+                                className="w-80 bg-white/5 backdrop-blur-sm rounded-lg flex flex-col flex-shrink-0"
                                 onDragOver={handleDragOver}
                                 onDrop={(e) => handleDrop(e, stage.funnel_stage_id)}
                             >
-                                <div className="p-3 font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 rounded-t-lg shadow-sm">
+                                <div className="p-3 font-semibold text-[var(--text-primary)] bg-[var(--glass-bg)] border-b border-[var(--glass-border)] rounded-t-lg shadow-sm">
                                     <div className="flex justify-between items-center">
                                         <h3 className="text-sm uppercase tracking-wider">{stage.name}</h3>
-                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full">{projectsInStage.length}</span>
+                                        <span className="text-xs font-bold text-[var(--text-secondary)] bg-white/10 px-2 py-1 rounded-full">{projectsInStage.length}</span>
                                     </div>
-                                    <p className="text-xs text-green-600 dark:text-green-500 font-bold mt-1">
+                                    <p className="text-xs text-green-400 font-bold mt-1">
                                         {stageTotalAmount.toLocaleString('uk-UA')} грн
                                     </p>
                                 </div>

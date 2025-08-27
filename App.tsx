@@ -14,39 +14,42 @@ import Tasks from './pages/Tasks';
 import NotFound from './pages/NotFound';
 import Settings from './pages/Settings';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import AdminRoute from './components/AdminRoute';
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <HashRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="counterparties" element={<Counterparties />} />
-              <Route path="products" element={<Products />} />
-              <Route path="services" element={<Services />} />
-              <Route path="sales" element={<Sales />} />
-              <Route path="projects" element={<Projects />} />
-              <Route path="projects/:id" element={<ProjectDetail />} />
-              <Route path="subprojects" element={<SubProjects />} />
-              <Route path="subprojects/:id" element={<SubProjectDetail />} />
-              <Route path="tasks" element={<Tasks />} />
-              
-              <Route element={<AdminRoute />}>
-                <Route path="settings" element={<Settings />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <HashRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="counterparties" element={<Counterparties />} />
+                <Route path="products" element={<Products />} />
+                <Route path="services" element={<Services />} />
+                <Route path="sales" element={<Sales />} />
+                <Route path="projects" element={<Projects />} />
+                <Route path="projects/:id" element={<ProjectDetail />} />
+                <Route path="subprojects" element={<SubProjects />} />
+                <Route path="subprojects/:id" element={<SubProjectDetail />} />
+                <Route path="tasks" element={<Tasks />} />
+                
+                <Route element={<AdminRoute />}>
+                  <Route path="settings" element={<Settings />} />
+                </Route>
+                
+                <Route path="*" element={<NotFound />} />
               </Route>
-              
-              <Route path="*" element={<NotFound />} />
             </Route>
-          </Route>
-        </Routes>
-      </HashRouter>
-    </AuthProvider>
+          </Routes>
+        </HashRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 

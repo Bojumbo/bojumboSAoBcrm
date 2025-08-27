@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import { Task, Manager, Project, SubProject } from '../types';
@@ -17,7 +18,6 @@ const TaskForm: React.FC<{
         description: '',
         due_date: '',
         ...task,
-        // FIX: Removed duplicate ID properties. The versions below handle both create and edit cases correctly.
         responsible_manager_id: task?.responsible_manager_id?.toString() || '',
         creator_manager_id: task?.creator_manager_id?.toString() || '',
         project_id: task?.project_id?.toString() || '',
@@ -63,12 +63,12 @@ const TaskForm: React.FC<{
         onSave();
     };
 
-    const baseInputClasses = "w-full px-3 py-2 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
+    const baseInputClasses = "w-full px-3 py-2 rounded-md focus:outline-none glass-input";
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">{task ? 'Редагувати' : 'Додати'} завдання</h3>
+        <div className="fixed inset-0 bg-[var(--modal-backdrop-bg)] backdrop-blur-md overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+            <div className="modal-animate relative p-6 border w-full max-w-2xl shadow-lg rounded-2xl glass-pane">
+                <h3 className="text-lg font-medium leading-6 text-[var(--text-primary)]">{task ? 'Редагувати' : 'Додати'} завдання</h3>
                 <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                     <input type="text" name="title" value={formData.title} onChange={handleChange} placeholder="Назва" required className={baseInputClasses}/>
                     <textarea name="description" value={formData.description} onChange={handleChange} placeholder="Опис" className={baseInputClasses}></textarea>
@@ -77,7 +77,7 @@ const TaskForm: React.FC<{
                             <option value="">-- Проект (необов'язково) --</option>
                             {projects.map(p => <option key={p.project_id} value={p.project_id}>{p.name}</option>)}
                         </select>
-                         <select name="subproject_id" value={formData.subproject_id} onChange={handleChange} disabled={!formData.project_id} className={`${baseInputClasses} disabled:bg-gray-200 dark:disabled:bg-gray-700`}>
+                         <select name="subproject_id" value={formData.subproject_id} onChange={handleChange} disabled={!formData.project_id} className={`${baseInputClasses} disabled:opacity-50 disabled:cursor-not-allowed`}>
                             <option value="">-- Підпроект (необов'язково) --</option>
                             {availableSubprojects.map(sp => <option key={sp.subproject_id} value={sp.subproject_id}>{sp.name}</option>)}
                         </select>
@@ -91,12 +91,12 @@ const TaskForm: React.FC<{
                         </select>
                     </div>
                     <div>
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Термін виконання</label>
+                        <label className="text-sm font-medium text-[var(--text-secondary)]">Термін виконання</label>
                         <input type="date" name="due_date" value={formData.due_date || ''} onChange={handleChange} className={baseInputClasses}/>
                     </div>
                     <div className="flex justify-end space-x-2 pt-4">
-                        <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Скасувати</button>
-                        <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Зберегти</button>
+                        <button type="button" onClick={onCancel} className="px-4 py-2 bg-white/10 text-[var(--text-primary)] rounded-md hover:bg-white/20">Скасувати</button>
+                        <button type="submit" className="px-4 py-2 bg-[var(--brand-primary)] text-white rounded-md hover:bg-[var(--brand-bg-hover)]">Зберегти</button>
                     </div>
                 </form>
             </div>
@@ -196,14 +196,14 @@ const Tasks: React.FC = () => {
         fetchData();
     };
     
-    const baseInputClasses = "w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
+    const baseInputClasses = "w-full px-3 py-2 text-sm rounded-md focus:outline-none glass-input";
 
     return (
         <div>
             <PageHeader title="Завдання" buttonLabel="Додати завдання" onButtonClick={handleAdd} />
             
-             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 flex items-center mb-4">
+             <div className="mb-6 p-4 rounded-xl glass-pane">
+                 <h3 className="text-lg font-semibold text-[var(--text-primary)] flex items-center mb-4">
                     <FunnelIcon className="h-5 w-5 mr-2" />
                     Фільтри
                 </h3>
@@ -212,7 +212,7 @@ const Tasks: React.FC = () => {
                         <option value="">Всі проекти</option>
                         {projects.map(p => <option key={p.project_id} value={p.project_id}>{p.name}</option>)}
                     </select>
-                    <select name="subproject_id" value={filters.subproject_id} onChange={handleFilterChange} disabled={!filters.project_id} className={`${baseInputClasses} disabled:bg-gray-200 dark:disabled:bg-gray-700`}>
+                    <select name="subproject_id" value={filters.subproject_id} onChange={handleFilterChange} disabled={!filters.project_id} className={`${baseInputClasses} disabled:opacity-50 disabled:cursor-not-allowed`}>
                         <option value="">Всі підпроекти</option>
                         {availableSubprojectsForFilter.map(sp => <option key={sp.subproject_id} value={sp.subproject_id}>{sp.name}</option>)}
                     </select>
@@ -224,46 +224,46 @@ const Tasks: React.FC = () => {
                 <div className="mt-4 flex justify-end">
                     <button
                         onClick={resetFilters}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 border border-transparent rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] bg-white/10 border border-transparent rounded-md hover:bg-white/20"
                     >
                         Скинути фільтри
                     </button>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
+            <div className="rounded-xl glass-pane overflow-hidden">
+                <table className="min-w-full">
+                    <thead className="bg-[var(--table-header-bg)]">
                         <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Назва</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Проект / Підпроект</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Виконавець</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Термін</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Назва</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Проект / Підпроект</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Виконавець</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Термін</th>
                             <th scope="col" className="relative px-6 py-3"><span className="sr-only">Дії</span></th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-[var(--table-divide-color)]">
                         {loading ? (
-                            <tr><td colSpan={5} className="text-center py-4">Завантаження...</td></tr>
+                            <tr><td colSpan={5} className="text-center py-4 text-[var(--text-secondary)]">Завантаження...</td></tr>
                         ) : (
                             filteredTasks.map((task) => (
-                                <tr key={task.task_id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{task.title}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                <tr key={task.task_id} className="hover:bg-[var(--table-row-hover-bg)] transition-colors duration-200">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--text-primary)]">{task.title}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">
                                         <div>{task.project?.name || 'N/A'}</div>
-                                        {task.subproject && <div className="text-xs text-gray-400 dark:text-gray-500 pl-2">↳ {task.subproject.name}</div>}
+                                        {task.subproject && <div className="text-xs text-[var(--text-muted)] pl-2">↳ {task.subproject.name}</div>}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{task.responsible_manager ? `${task.responsible_manager.first_name} ${task.responsible_manager.last_name}` : 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{task.responsible_manager ? `${task.responsible_manager.first_name} ${task.responsible_manager.last_name}` : 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
-                                        <button onClick={() => handleEdit(task)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"><PencilIcon className="h-5 w-5"/></button>
-                                        <button onClick={() => handleDelete(task.task_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"><TrashIcon className="h-5 w-5"/></button>
+                                        <button onClick={() => handleEdit(task)} className="text-indigo-400 hover:text-indigo-300"><PencilIcon className="h-5 w-5"/></button>
+                                        <button onClick={() => handleDelete(task.task_id)} className="text-red-400 hover:text-red-300"><TrashIcon className="h-5 w-5"/></button>
                                     </td>
                                 </tr>
                             ))
                         )}
                         {!loading && filteredTasks.length === 0 && (
-                            <tr><td colSpan={5} className="text-center py-4 text-gray-500 dark:text-gray-400">Немає завдань, що відповідають фільтрам.</td></tr>
+                            <tr><td colSpan={5} className="text-center py-4 text-[var(--text-secondary)]">Немає завдань, що відповідають фільтрам.</td></tr>
                         )}
                     </tbody>
                 </table>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
@@ -7,8 +8,6 @@ import { FunnelIcon, BanknotesIcon } from '../components/Icons';
 
 const SubProjectForm: React.FC<{
     subproject?: SubProject | null;
-    // FIX: Changed onSave prop type to () => void as it doesn't pass any data up.
-    // The form handles its own API logic and just signals completion.
     onSave: () => void;
     onCancel: () => void;
     projects: Project[];
@@ -40,12 +39,12 @@ const SubProjectForm: React.FC<{
         onSave();
     };
 
-    const baseInputClasses = "w-full px-3 py-2 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
+    const baseInputClasses = "w-full px-3 py-2 rounded-md focus:outline-none glass-input";
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-            <div className="relative p-5 border w-full max-w-lg shadow-lg rounded-md bg-white dark:bg-gray-800">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">{subproject ? 'Редагувати' : 'Додати'} підпроект</h3>
+        <div className="fixed inset-0 bg-[var(--modal-backdrop-bg)] backdrop-blur-md overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+            <div className="modal-animate relative p-6 border w-full max-w-lg shadow-lg rounded-2xl glass-pane">
+                <h3 className="text-lg font-medium leading-6 text-[var(--text-primary)] mb-4">{subproject ? 'Редагувати' : 'Додати'} підпроект</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Назва підпроекту" required className={baseInputClasses}/>
                     <input type="number" name="cost" value={formData.cost} onChange={handleChange} placeholder="Вартість" required min="0" step="0.01" className={baseInputClasses}/>
@@ -57,8 +56,8 @@ const SubProjectForm: React.FC<{
                         {statuses.map(s => <option key={s.sub_project_status_id} value={s.name}>{s.name}</option>)}
                     </select>
                     <div className="flex justify-end space-x-2 pt-4">
-                        <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Скасувати</button>
-                        <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Зберегти</button>
+                        <button type="button" onClick={onCancel} className="px-4 py-2 bg-white/10 text-[var(--text-primary)] rounded-md hover:bg-white/20">Скасувати</button>
+                        <button type="submit" className="px-4 py-2 bg-[var(--brand-primary)] text-white rounded-md hover:bg-[var(--brand-bg-hover)]">Зберегти</button>
                     </div>
                 </form>
             </div>
@@ -76,18 +75,18 @@ const SubProjectCard: React.FC<{ subproject: SubProject }> = ({ subproject }) =>
         <div
             draggable
             onDragStart={handleDragStart}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-4 border-l-4 border-blue-500 cursor-grab active:cursor-grabbing group"
+            className="glass-pane rounded-lg mb-4 border-l-4 border-blue-400 cursor-grab active:cursor-grabbing group transform hover:-translate-y-1 transition-transform duration-200"
         >
             <Link to={`/subprojects/${subproject.subproject_id}`} className="block p-4">
-                <p className="font-semibold text-gray-800 dark:text-white break-words group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{subproject.name}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                <p className="font-semibold text-[var(--text-primary)] break-words group-hover:text-blue-300">{subproject.name}</p>
+                <p className="text-sm text-[var(--text-secondary)] mt-2">
                     Проект: {subproject.project?.name || 'N/A'}
                 </p>
                 <div className="flex justify-between items-center mt-3">
-                     <p className="text-xs text-gray-500 dark:text-gray-400">
+                     <p className="text-xs text-[var(--text-muted)]">
                         {subproject.project?.main_responsible_manager ? `${subproject.project.main_responsible_manager.first_name.charAt(0)}. ${subproject.project.main_responsible_manager.last_name}` : 'N/A'}
                     </p>
-                    <div className="flex items-center text-sm font-bold text-green-600 dark:text-green-400">
+                    <div className="flex items-center text-sm font-bold text-green-400">
                         <BanknotesIcon className="h-4 w-4 mr-1"/>
                         <span>{(subproject.cost || 0).toLocaleString('uk-UA')}</span>
                     </div>
@@ -187,7 +186,7 @@ const SubProjects: React.FC = () => {
         }
     };
 
-    const baseInputClasses = "w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
+    const baseInputClasses = "w-full px-3 py-2 text-sm rounded-md focus:outline-none glass-input";
     
     if (loading) {
         return <div>Завантаження...</div>
@@ -197,7 +196,7 @@ const SubProjects: React.FC = () => {
         <div className="flex flex-col h-full">
             <PageHeader title="Підпроекти" buttonLabel="Додати підпроект" onButtonClick={handleAdd} />
             
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md flex-shrink-0">
+            <div className="mb-6 p-4 rounded-xl glass-pane flex-shrink-0">
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                      <select name="project_id" value={filters.project_id} onChange={handleFilterChange} className={baseInputClasses}>
                         <option value="">Всі проекти</option>
@@ -207,14 +206,14 @@ const SubProjects: React.FC = () => {
                         <option value="">Всі менеджери</option>
                         {managers.map(m => <option key={m.manager_id} value={m.manager_id}>{m.first_name} {m.last_name}</option>)}
                     </select>
-                </div>
-                <div className="mt-4 flex justify-end">
-                    <button
-                        onClick={resetFilters}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 border border-transparent rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                    >
-                        Скинути фільтри
-                    </button>
+                     <div className="flex justify-end items-center">
+                        <button
+                            onClick={resetFilters}
+                            className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] bg-white/10 border border-transparent rounded-md hover:bg-white/20"
+                        >
+                            Скинути фільтри
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -227,16 +226,16 @@ const SubProjects: React.FC = () => {
                         return (
                             <div
                                 key={status.sub_project_status_id}
-                                className="w-80 bg-gray-100 dark:bg-gray-800/50 rounded-lg flex flex-col flex-shrink-0"
+                                className="w-80 bg-white/5 backdrop-blur-sm rounded-lg flex flex-col flex-shrink-0"
                                 onDragOver={handleDragOver}
                                 onDrop={(e) => handleDrop(e, status.name)}
                             >
-                                <div className="p-3 font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 rounded-t-lg shadow-sm">
+                                <div className="p-3 font-semibold text-[var(--text-primary)] bg-[var(--glass-bg)] border-b border-[var(--glass-border)] rounded-t-lg shadow-sm">
                                     <div className="flex justify-between items-center">
                                         <h3 className="text-sm uppercase tracking-wider">{status.name}</h3>
-                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full">{subprojectsInStatus.length}</span>
+                                        <span className="text-xs font-bold text-[var(--text-secondary)] bg-white/10 px-2 py-1 rounded-full">{subprojectsInStatus.length}</span>
                                     </div>
-                                    <p className="text-xs text-green-600 dark:text-green-500 font-bold mt-1">
+                                    <p className="text-xs text-green-400 font-bold mt-1">
                                         {statusTotalAmount.toLocaleString('uk-UA')} грн
                                     </p>
                                 </div>
