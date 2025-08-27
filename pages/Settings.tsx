@@ -1,43 +1,104 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import { Manager, Unit, SaleStatusType, SubProjectStatusType, Warehouse, Funnel, FunnelStage } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PencilIcon, TrashIcon, PlusIcon } from '../components/Icons';
 
-// --- Manager Form (from former Managers.tsx) ---
-const ManagerForm: React.FC<{ manager?: Manager | null; onSave: () => void; onCancel: () => void; }> = ({ manager, onSave, onCancel }) => {
+// --- Manager Form ---
+const ManagerForm: React.FC<{ 
+    manager?: Manager | null; 
+    onSave: () => void; 
+    onCancel: () => void; 
+    supervisors: Manager[];
+}> = ({ manager, onSave, onCancel, supervisors }) => {
     const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
         email: '',
         phone_number: '',
-        ...manager
+        role: 'manager',
+        ...manager,
+        supervisor_ids: manager?.supervisor_ids?.map(String) || [],
     });
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleSupervisorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { value, checked } = e.target;
+        const supervisorId = value;
+        
+        setFormData(prev => {
+            const currentIds = prev.supervisor_ids || [];
+            if (checked) {
+                return { ...prev, supervisor_ids: [...currentIds, supervisorId] };
+            } else {
+                return { ...prev, supervisor_ids: currentIds.filter(id => id !== supervisorId) };
+            }
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        const dataToSave = {
+            ...formData,
+            supervisor_ids: (formData.supervisor_ids || []).map(id => parseInt(id)),
+        };
+
         if (manager) {
-            await api.update('managers', manager.manager_id, formData);
+            await api.update('managers', manager.manager_id, dataToSave);
         } else {
-            await api.create('managers', formData);
+            await api.create('managers', dataToSave);
         }
         onSave();
     };
+    
+    const baseInputClasses = "w-full px-3 py-2 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
 
     return (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="relative top-10 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white dark:bg-gray-800">
                 <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">{manager ? 'Редагувати' : 'Додати'} менеджера</h3>
-                <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-                    <input type="text" name="first_name" value={formData.first_name} onChange={handleChange} placeholder="Ім'я" required className="w-full px-3 py-2 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
-                    <input type="text" name="last_name" value={formData.last_name} onChange={handleChange} placeholder="Прізвище" required className="w-full px-3 py-2 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
-                    <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email" required className="w-full px-3 py-2 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
-                    <input type="text" name="phone_number" value={formData.phone_number} onChange={handleChange} placeholder="Телефон" className="w-full px-3 py-2 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
+                <form onSubmit={handleSubmit} className="mt-4 space-y-4 max-h-[80vh] overflow-y-auto pr-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" name="first_name" value={formData.first_name} onChange={handleChange} placeholder="Ім'я" required className={baseInputClasses}/>
+                        <input type="text" name="last_name" value={formData.last_name} onChange={handleChange} placeholder="Прізвище" required className={baseInputClasses}/>
+                    </div>
+                    <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email" required className={baseInputClasses}/>
+                    <input type="text" name="phone_number" value={formData.phone_number} onChange={handleChange} placeholder="Телефон" className={baseInputClasses}/>
+                    <select name="role" value={formData.role} onChange={handleChange} className={baseInputClasses}>
+                        <option value="manager">Менеджер</option>
+                        <option value="head">Керівник</option>
+                        <option value="admin">Адміністратор</option>
+                    </select>
+
+                    {formData.role !== 'admin' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Керівники</label>
+                            <div className="mt-1 border border-gray-300 dark:border-gray-600 rounded-md p-2 h-32 overflow-y-auto space-y-1">
+                                {supervisors.map(s => (
+                                    <div key={s.manager_id} className="flex items-center">
+                                        <input
+                                            id={`supervisor-${s.manager_id}`}
+                                            type="checkbox"
+                                            value={s.manager_id.toString()}
+                                            checked={(formData.supervisor_ids || []).includes(s.manager_id.toString())}
+                                            onChange={handleSupervisorChange}
+                                            disabled={manager?.manager_id === s.manager_id} // Can't be their own supervisor
+                                            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50"
+                                        />
+                                        <label htmlFor={`supervisor-${s.manager_id}`} className="ml-2 text-sm text-gray-700 dark:text-gray-200">
+                                            {s.first_name} {s.last_name}
+                                        </label>
+                                    </div>
+                                ))}
+                                {supervisors.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400">Немає доступних керівників.</p>}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex justify-end space-x-2 pt-4">
                         <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">Скасувати</button>
                         <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Зберегти</button>
@@ -69,6 +130,8 @@ const ManagersTabContent: React.FC = () => {
     useEffect(() => {
         fetchManagers();
     }, [fetchManagers]);
+
+    const supervisors = useMemo(() => managers.filter(m => m.role === 'head' || m.role === 'admin'), [managers]);
 
     const handleAdd = () => {
         setSelectedManager(null);
@@ -132,7 +195,7 @@ const ManagersTabContent: React.FC = () => {
                     </tbody>
                 </table>
             </div>
-            {isModalOpen && <ManagerForm manager={selectedManager} onSave={handleSave} onCancel={() => setIsModalOpen(false)} />}
+            {isModalOpen && <ManagerForm manager={selectedManager} onSave={handleSave} onCancel={() => setIsModalOpen(false)} supervisors={supervisors} />}
         </div>
     );
 };

@@ -1,15 +1,20 @@
-
 import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, SubProjectStatusType, ProjectProduct, ProjectService, ProjectComment, ProductStock, Funnel, FunnelStage, SubProjectComment, SubProjectProduct, SubProjectService } from '../types';
+
+let currentUser: Manager | null = null;
 
 // In-memory database
 let managers: Manager[] = [
-  { manager_id: 1, first_name: 'Іван', last_name: 'Петров', email: 'ivan.p@example.com', phone_number: '123-456-7890' },
-  { manager_id: 2, first_name: 'Марія', last_name: 'Іванова', email: 'maria.i@example.com', phone_number: '098-765-4321' },
+  { manager_id: 1, first_name: 'Admin', last_name: 'User', email: 'admin@example.com', phone_number: '000-000-0000', role: 'admin', supervisor_ids: [] },
+  { manager_id: 2, first_name: 'Іван', last_name: 'Петров', email: 'ivan.p@example.com', phone_number: '123-456-7890', role: 'head', supervisor_ids: [1] },
+  { manager_id: 3, first_name: 'Марія', last_name: 'Іванова', email: 'maria.i@example.com', phone_number: '098-765-4321', role: 'manager', supervisor_ids: [2] },
+  { manager_id: 4, first_name: 'Олег', last_name: 'Сидоренко', email: 'oleg.s@example.com', phone_number: '111-222-3333', role: 'manager', supervisor_ids: [2, 5] },
+  { manager_id: 5, first_name: 'Анна', last_name: 'Коваленко', email: 'anna.k@example.com', phone_number: '444-555-6666', role: 'head', supervisor_ids: [1] },
 ];
 
 let counterparties: Counterparty[] = [
-    { counterparty_id: 1, name: 'ТОВ "Ромашка"', counterparty_type: CounterpartyType.LEGAL_ENTITY, responsible_manager_id: 1 },
-    { counterparty_id: 2, name: 'ФОП Сидоренко', counterparty_type: CounterpartyType.INDIVIDUAL, responsible_manager_id: 2 },
+    { counterparty_id: 1, name: 'ТОВ "Ромашка"', counterparty_type: CounterpartyType.LEGAL_ENTITY, responsible_manager_id: 2 },
+    { counterparty_id: 2, name: 'ФОП Сидоренко', counterparty_type: CounterpartyType.INDIVIDUAL, responsible_manager_id: 3 },
+    { counterparty_id: 3, name: 'ТОВ "Мрія"', counterparty_type: CounterpartyType.LEGAL_ENTITY, responsible_manager_id: 4 },
 ];
 
 let units: Unit[] = [
@@ -75,8 +80,8 @@ let subProjectStatuses: SubProjectStatusType[] = [
 ];
 
 let sales: Omit<Sale, 'counterparty' | 'responsible_manager' | 'products' | 'services' | 'total_price'>[] = [
-    { sale_id: 1, counterparty_id: 1, responsible_manager_id: 1, sale_date: new Date('2024-05-20').toISOString(), status: 'Оплачено', deferred_payment_date: null, project_id: 1 },
-    { sale_id: 2, counterparty_id: 2, responsible_manager_id: 1, sale_date: new Date('2024-05-22').toISOString(), status: 'Відтермінована оплата', deferred_payment_date: '2024-06-30', project_id: null },
+    { sale_id: 1, counterparty_id: 1, responsible_manager_id: 2, sale_date: new Date('2024-05-20').toISOString(), status: 'Оплачено', deferred_payment_date: null, project_id: 1 },
+    { sale_id: 2, counterparty_id: 2, responsible_manager_id: 3, sale_date: new Date('2024-05-22').toISOString(), status: 'Відтермінована оплата', deferred_payment_date: '2024-06-30', project_id: null },
     { sale_id: 3, counterparty_id: 1, responsible_manager_id: 2, sale_date: new Date().toISOString(), status: 'Не оплачено', deferred_payment_date: null, project_id: null },
 ];
 
@@ -93,9 +98,9 @@ let sales_services: { sale_id: number; service_id: number }[] = [
 ];
 
 let projects: Omit<Project, 'main_responsible_manager' | 'secondary_responsible_managers' | 'counterparty' | 'subprojects' | 'tasks' | 'sales' | 'project_products' | 'project_services' | 'comments' | 'funnel' | 'funnel_stage'>[] = [
-    { project_id: 1, name: 'Розробка нового сайту', description: 'Створити сучасний та адаптивний веб-сайт для клієнта з інтеграцією платіжної системи. Використовувати React для фронтенду та Node.js для бекенду.', main_responsible_manager_id: 2, secondary_responsible_manager_ids: [1], counterparty_id: 1, forecast_amount: 5000, funnel_id: 2, funnel_stage_id: 9 },
-    { project_id: 2, name: 'Продаж партії серверів', description: 'Поставка та налаштування 10 серверів Dell PowerEdge для дата-центру клієнта. Включає встановлення ОС та базове налаштування мережі.', main_responsible_manager_id: 1, secondary_responsible_manager_ids: [], counterparty_id: 2, forecast_amount: 15000, funnel_id: 1, funnel_stage_id: 3 },
-    { project_id: 3, name: 'Впровадження CRM', description: '', main_responsible_manager_id: 2, secondary_responsible_manager_ids: [1], counterparty_id: 1, forecast_amount: 8000, funnel_id: 2, funnel_stage_id: 7 },
+    { project_id: 1, name: 'Розробка нового сайту', description: 'Створити сучасний та адаптивний веб-сайт для клієнта з інтеграцією платіжної системи.', main_responsible_manager_id: 3, secondary_responsible_manager_ids: [2], counterparty_id: 1, forecast_amount: 5000, funnel_id: 2, funnel_stage_id: 9 },
+    { project_id: 2, name: 'Продаж партії серверів', description: 'Поставка та налаштування 10 серверів Dell PowerEdge для дата-центру клієнта.', main_responsible_manager_id: 2, secondary_responsible_manager_ids: [], counterparty_id: 2, forecast_amount: 15000, funnel_id: 1, funnel_stage_id: 3 },
+    { project_id: 3, name: 'Впровадження CRM', description: '', main_responsible_manager_id: 3, secondary_responsible_manager_ids: [2, 4], counterparty_id: 1, forecast_amount: 8000, funnel_id: 2, funnel_stage_id: 7 },
 ];
 
 let subprojects: Omit<SubProject, 'project' | 'tasks' | 'comments' | 'subproject_products' | 'subproject_services'>[] = [
@@ -103,7 +108,8 @@ let subprojects: Omit<SubProject, 'project' | 'tasks' | 'comments' | 'subproject
 ];
 
 let tasks: Omit<Task, 'responsible_manager' | 'creator_manager' | 'project' | 'subproject'>[] = [
-    { task_id: 1, title: 'Створити макет головної сторінки', description: 'Підготувати декілька варіантів дизайну', responsible_manager_id: 2, creator_manager_id: 1, project_id: 1, subproject_id: 1, due_date: '2024-08-15' },
+    { task_id: 1, title: 'Створити макет головної сторінки', description: 'Підготувати декілька варіантів дизайну', responsible_manager_id: 3, creator_manager_id: 2, project_id: 1, subproject_id: 1, due_date: '2024-08-15' },
+    { task_id: 2, title: 'Підготувати комерційну пропозицію', description: '', responsible_manager_id: 2, creator_manager_id: 1, project_id: 2, subproject_id: null, due_date: '2024-08-10' },
 ];
 
 let project_products: Omit<ProjectProduct, 'product'>[] = [
@@ -115,12 +121,12 @@ let project_services: Omit<ProjectService, 'service'>[] = [
 ];
 
 let project_comments: Omit<ProjectComment, 'manager'>[] = [
-    { comment_id: 1, project_id: 1, manager_id: 1, content: 'Пропоную розпочати з обговорення дизайну. Які є ідеї?', created_at: new Date('2024-07-28T10:00:00Z').toISOString(), file: null },
-    { comment_id: 2, project_id: 1, manager_id: 2, content: 'Підтримую. Я вже підготувала кілька референсів, зараз надішлю.', created_at: new Date('2024-07-28T10:05:00Z').toISOString(), file: null },
+    { comment_id: 1, project_id: 1, manager_id: 2, content: 'Пропоную розпочати з обговорення дизайну. Які є ідеї?', created_at: new Date('2024-07-28T10:00:00Z').toISOString(), file: null },
+    { comment_id: 2, project_id: 1, manager_id: 3, content: 'Підтримую. Я вже підготувала кілька референсів, зараз надішлю.', created_at: new Date('2024-07-28T10:05:00Z').toISOString(), file: null },
 ];
 
 let subproject_comments: Omit<SubProjectComment, 'manager'>[] = [
-    { comment_id: 3, subproject_id: 1, manager_id: 2, content: 'Дизайн затверджено, можна починати верстку.', created_at: new Date('2024-07-29T14:00:00Z').toISOString(), file: null },
+    { comment_id: 3, subproject_id: 1, manager_id: 3, content: 'Дизайн затверджено, можна починати верстку.', created_at: new Date('2024-07-29T14:00:00Z').toISOString(), file: null },
 ];
 
 let subproject_products: Omit<SubProjectProduct, 'product'>[] = [];
@@ -157,8 +163,6 @@ type Entity = keyof typeof db;
 
 const simulateNetwork = (delay = 500) => new Promise(res => setTimeout(res, delay));
 
-// FIX: Replaced faulty pluralization logic with a robust helper function to ensure
-// the correct ID key (e.g., 'sale_id' from 'sales') is always used in CRUD operations.
 const getIdKeyForEntity = (entity: Entity): string => {
     switch (entity) {
         case 'managers': return 'manager_id';
@@ -187,19 +191,92 @@ const getIdKeyForEntity = (entity: Entity): string => {
 };
 
 const api = {
+    login: async (email: string): Promise<Manager | null> => {
+        await simulateNetwork(200);
+        console.log(`[API MOCK] Login attempt for: ${email}`);
+        const user = db.managers.find(m => m.email.toLowerCase() === email.toLowerCase());
+        if (user) {
+            currentUser = { ...user };
+            console.log('[API MOCK] Login successful:', currentUser);
+            return { ...user };
+        }
+        currentUser = null;
+        console.log('[API MOCK] Login failed');
+        return null;
+    },
+    logout: async (): Promise<void> => {
+        currentUser = null;
+        console.log('[API MOCK] User logged out.');
+        return Promise.resolve();
+    },
+    getCurrentUser: async (): Promise<Manager | null> => {
+        // In a real app, this would check a token or session
+        return Promise.resolve(currentUser ? { ...currentUser } : null);
+    },
     getAll: async <T,>(entity: Entity): Promise<T[]> => {
         await simulateNetwork();
-        console.log(`[API MOCK] GET /api/${entity}`);
+        if (!currentUser) {
+            console.log('[API MOCK] Denied access: No user logged in.');
+            return [];
+        }
+
+        let allowedManagerIds: number[] = [];
+        if (currentUser.role === 'admin') {
+            // Admin can see everything, no ID filtering needed.
+        } else if (currentUser.role === 'head') {
+            const subordinateIds = db.managers.filter(m => m.supervisor_ids?.includes(currentUser!.manager_id)).map(m => m.manager_id);
+            allowedManagerIds = [currentUser.manager_id, ...subordinateIds];
+        } else { // 'manager'
+            allowedManagerIds = [currentUser.manager_id];
+        }
+
+        let rawData: any[] = [...db[entity]];
+
+        if (currentUser.role !== 'admin') {
+            switch(entity) {
+                case 'managers':
+                    rawData = rawData.filter(item => allowedManagerIds.includes((item as Manager).manager_id));
+                    break;
+                case 'counterparties':
+                    rawData = rawData.filter(item => (item as Counterparty).responsible_manager_id && allowedManagerIds.includes((item as Counterparty).responsible_manager_id!));
+                    break;
+                case 'sales':
+                    rawData = rawData.filter(item => allowedManagerIds.includes((item as Sale).responsible_manager_id));
+                    break;
+                case 'projects':
+                    rawData = rawData.filter(item => 
+                        ((item as Project).main_responsible_manager_id && allowedManagerIds.includes((item as Project).main_responsible_manager_id!)) ||
+                        ((item as Project).secondary_responsible_manager_ids && (item as Project).secondary_responsible_manager_ids!.some(id => allowedManagerIds.includes(id)))
+                    );
+                    break;
+                case 'tasks':
+                     rawData = rawData.filter(item => 
+                        ((item as Task).responsible_manager_id && allowedManagerIds.includes((item as Task).responsible_manager_id!)) ||
+                        ((item as Task).creator_manager_id && allowedManagerIds.includes((item as Task).creator_manager_id!))
+                    );
+                    break;
+                case 'subprojects':
+                    const allowedProjectIds = db.projects.filter(p => 
+                        (p.main_responsible_manager_id && allowedManagerIds.includes(p.main_responsible_manager_id)) ||
+                        (p.secondary_responsible_manager_ids && p.secondary_responsible_manager_ids.some(id => allowedManagerIds.includes(id)))
+                    ).map(p => p.project_id);
+                    rawData = rawData.filter(item => allowedProjectIds.includes((item as SubProject).project_id));
+                    break;
+                // Entities like products, services, units etc. are not restricted by manager.
+            }
+        }
+
+        console.log(`[API MOCK] GET /api/${entity} for ${currentUser.email}, returned ${rawData.length} of ${db[entity].length} items after filtering.`);
+
+        // --- Data Enrichment ---
         if (entity === 'sales') {
-          return db.sales.map(sale => {
+          return rawData.map(sale => {
             const saleProducts = db.sales_products
               .filter(sp => sp.sale_id === sale.sale_id)
               .map(sp => {
                   const product = db.products.find(p => p.product_id === sp.product_id);
                   return product ? { product: { ...product, unit: db.units.find(u => u.unit_id === product.unit_id)}, quantity: sp.quantity } : null;
               })
-              // FIX: Replaced the specific type guard with a more robust one using `Exclude`
-              // to work around a complex TypeScript inference issue with nested object types.
               .filter((item): item is Exclude<typeof item, null> => item !== null);
 
             const saleServices = db.sales_services
@@ -221,7 +298,7 @@ const api = {
           }) as T[];
         }
         if (entity === 'projects') {
-             return db.projects.map(p => ({
+             return rawData.map(p => ({
                 ...p,
                 main_responsible_manager: db.managers.find(m => m.manager_id === p.main_responsible_manager_id),
                 secondary_responsible_managers: (p.secondary_responsible_manager_ids || []).map(id => db.managers.find(m => m.manager_id === id)).filter((m): m is Manager => !!m),
@@ -231,7 +308,7 @@ const api = {
             })) as T[];
         }
         if (entity === 'products') {
-            return db.products.map(p => {
+            return rawData.map(p => {
                 const stocks = db.productStocks
                     .filter(ps => ps.product_id === p.product_id)
                     .map(ps => ({
@@ -248,7 +325,7 @@ const api = {
             }) as T[];
         }
         if (entity === 'tasks') {
-            return db.tasks.map(task => ({
+            return rawData.map(task => ({
                 ...task,
                 responsible_manager: db.managers.find(m => m.manager_id === task.responsible_manager_id),
                 creator_manager: db.managers.find(m => m.manager_id === task.creator_manager_id),
@@ -262,24 +339,66 @@ const api = {
                 main_responsible_manager: db.managers.find(m => m.manager_id === p.main_responsible_manager_id),
                 counterparty: db.counterparties.find(c => c.counterparty_id === p.counterparty_id),
             }));
-            return db.subprojects.map(sp => ({
+            return rawData.map(sp => ({
                 ...sp,
                 project: enrichedProjects.find(p => p.project_id === sp.project_id)
             })) as T[];
         }
-        return [...db[entity]] as T[];
+        return rawData as T[];
     },
     getById: async <T,>(entity: Entity, id: number): Promise<T | null> => {
         await simulateNetwork();
-        console.log(`[API MOCK] GET /api/${entity}/${id}`);
+        if (!currentUser) {
+            console.log(`[API MOCK] Denied access to ${entity}/${id}: No user logged in.`);
+            return null;
+        }
+
         const idKey = getIdKeyForEntity(entity);
         // @ts-ignore
         const item = db[entity].find(item => item[idKey] === id);
+        if (!item) return null;
+
+        // Authorization Check
+        if (currentUser.role !== 'admin') {
+            let allowed = false;
+            let allowedManagerIds: number[];
+             if (currentUser.role === 'head') {
+                const subordinateIds = db.managers.filter(m => m.supervisor_ids?.includes(currentUser!.manager_id)).map(m => m.manager_id);
+                allowedManagerIds = [currentUser.manager_id, ...subordinateIds];
+            } else { // 'manager'
+                allowedManagerIds = [currentUser.manager_id];
+            }
+
+            switch(entity) {
+                case 'projects':
+                    const p = item as Project;
+                    allowed = (p.main_responsible_manager_id && allowedManagerIds.includes(p.main_responsible_manager_id)) ||
+                              (p.secondary_responsible_manager_ids && p.secondary_responsible_manager_ids.some(id => allowedManagerIds.includes(id))) || false;
+                    break;
+                case 'subprojects':
+                     const sp = item as SubProject;
+                     const parentProject = db.projects.find(p => p.project_id === sp.project_id);
+                     if(parentProject) {
+                         allowed = (parentProject.main_responsible_manager_id && allowedManagerIds.includes(parentProject.main_responsible_manager_id)) ||
+                                   (parentProject.secondary_responsible_manager_ids && parentProject.secondary_responsible_manager_ids.some(id => allowedManagerIds.includes(id))) || false;
+                     }
+                    break;
+                // Add more checks for other entities as needed
+                default:
+                    allowed = true; // Assume access for other entities if not specified
+                    break;
+            }
+             if (!allowed) {
+                console.log(`[API MOCK] Denied access to ${entity}/${id} for user ${currentUser.email}.`);
+                return null;
+            }
+        }
+        
+        console.log(`[API MOCK] GET /api/${entity}/${id}`);
 
         if (!item) return null;
 
         if (entity === 'projects') {
-            // FIX: Cast item to Project to correctly access its properties.
             const project = item as Project;
 
             const projectSales = db.sales.filter(s => s.project_id === id).map(sale => {
@@ -441,7 +560,6 @@ const api = {
         if (index === -1) return null;
         const updatedItem = { ...db[entity][index], ...data };
         db[entity][index] = updatedItem;
-        // FIX: Change type assertion to 'unknown as T' to resolve complex type mismatch error.
         return updatedItem as unknown as T;
     },
     delete: async (entity: Entity, id: number): Promise<boolean> => {

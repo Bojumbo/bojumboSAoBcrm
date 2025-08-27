@@ -5,6 +5,8 @@ export interface Manager {
   last_name: string;
   email: string;
   phone_number: string;
+  role: 'admin' | 'head' | 'manager';
+  supervisor_ids?: number[];
 }
 
 export enum CounterpartyType {
