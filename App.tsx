@@ -8,6 +8,8 @@ import Services from './pages/Services';
 import Sales from './pages/Sales';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
+import SubProjects from './pages/SubProjects';
+import SubProjectDetail from './pages/SubProjectDetail';
 import Tasks from './pages/Tasks';
 import NotFound from './pages/NotFound';
 import Settings from './pages/Settings';
@@ -24,6 +26,8 @@ const App: React.FC = () => {
           <Route path="sales" element={<Sales />} />
           <Route path="projects" element={<Projects />} />
           <Route path="projects/:id" element={<ProjectDetail />} />
+          <Route path="subprojects" element={<SubProjects />} />
+          <Route path="subprojects/:id" element={<SubProjectDetail />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />

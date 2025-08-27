@@ -147,12 +147,47 @@ export interface Project {
   funnel_stage?: FunnelStage;
 }
 
+export interface SubProjectComment {
+  comment_id: number;
+  subproject_id: number;
+  manager_id: number;
+  content: string;
+  created_at: string; // ISO string
+  manager?: Manager;
+  file?: {
+    name: string;
+    type: string; // MIME type
+    url: string;  // data URL
+  } | null;
+}
+
+export interface SubProjectProduct {
+  subproject_product_id: number;
+  subproject_id: number;
+  product_id: number;
+  quantity: number;
+  product?: Product;
+}
+
+export interface SubProjectService {
+  subproject_service_id: number;
+  subproject_id: number;
+  service_id: number;
+  service?: Service;
+}
+
 export interface SubProject {
   subproject_id: number;
   name: string;
+  description?: string;
   project_id: number;
   status?: string;
   cost: number;
+  project?: Project;
+  tasks?: Task[];
+  comments?: SubProjectComment[];
+  subproject_products?: SubProjectProduct[];
+  subproject_services?: SubProjectService[];
 }
 
 export interface Task {

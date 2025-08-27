@@ -1,5 +1,5 @@
 
-import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, SubProjectStatusType, ProjectProduct, ProjectService, ProjectComment, ProductStock, Funnel, FunnelStage } from '../types';
+import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, SubProjectStatusType, ProjectProduct, ProjectService, ProjectComment, ProductStock, Funnel, FunnelStage, SubProjectComment, SubProjectProduct, SubProjectService } from '../types';
 
 // In-memory database
 let managers: Manager[] = [
@@ -98,8 +98,8 @@ let projects: Omit<Project, 'main_responsible_manager' | 'secondary_responsible_
     { project_id: 3, name: 'Впровадження CRM', description: '', main_responsible_manager_id: 2, secondary_responsible_manager_ids: [1], counterparty_id: 1, forecast_amount: 8000, funnel_id: 2, funnel_stage_id: 7 },
 ];
 
-let subprojects: SubProject[] = [
-    { subproject_id: 1, name: 'Дизайн UI/UX', project_id: 1, status: 'В процесі', cost: 1500 },
+let subprojects: Omit<SubProject, 'project' | 'tasks' | 'comments' | 'subproject_products' | 'subproject_services'>[] = [
+    { subproject_id: 1, name: 'Дизайн UI/UX', project_id: 1, status: 'В процесі', cost: 1500, description: 'Розробка макетів та прототипів для всіх сторінок сайту.' },
 ];
 
 let tasks: Omit<Task, 'responsible_manager' | 'creator_manager' | 'project' | 'subproject'>[] = [
@@ -118,6 +118,13 @@ let project_comments: Omit<ProjectComment, 'manager'>[] = [
     { comment_id: 1, project_id: 1, manager_id: 1, content: 'Пропоную розпочати з обговорення дизайну. Які є ідеї?', created_at: new Date('2024-07-28T10:00:00Z').toISOString(), file: null },
     { comment_id: 2, project_id: 1, manager_id: 2, content: 'Підтримую. Я вже підготувала кілька референсів, зараз надішлю.', created_at: new Date('2024-07-28T10:05:00Z').toISOString(), file: null },
 ];
+
+let subproject_comments: Omit<SubProjectComment, 'manager'>[] = [
+    { comment_id: 3, subproject_id: 1, manager_id: 2, content: 'Дизайн затверджено, можна починати верстку.', created_at: new Date('2024-07-29T14:00:00Z').toISOString(), file: null },
+];
+
+let subproject_products: Omit<SubProjectProduct, 'product'>[] = [];
+let subproject_services: Omit<SubProjectService, 'service'>[] = [];
 
 
 const db = {
@@ -141,6 +148,9 @@ const db = {
     project_products,
     project_services,
     project_comments,
+    subproject_comments,
+    subproject_products,
+    subproject_services,
 };
 
 type Entity = keyof typeof db;
@@ -169,6 +179,9 @@ const getIdKeyForEntity = (entity: Entity): string => {
         case 'project_products': return 'project_product_id';
         case 'project_services': return 'project_service_id';
         case 'project_comments': return 'comment_id';
+        case 'subproject_comments': return 'comment_id';
+        case 'subproject_products': return 'subproject_product_id';
+        case 'subproject_services': return 'subproject_service_id';
         default: return 'id'; // Fallback
     }
 };
@@ -243,6 +256,17 @@ const api = {
                 subproject: db.subprojects.find(sp => sp.subproject_id === task.subproject_id),
             })) as T[];
         }
+        if (entity === 'subprojects') {
+            const enrichedProjects = db.projects.map(p => ({
+                ...p,
+                main_responsible_manager: db.managers.find(m => m.manager_id === p.main_responsible_manager_id),
+                counterparty: db.counterparties.find(c => c.counterparty_id === p.counterparty_id),
+            }));
+            return db.subprojects.map(sp => ({
+                ...sp,
+                project: enrichedProjects.find(p => p.project_id === sp.project_id)
+            })) as T[];
+        }
         return [...db[entity]] as T[];
     },
     getById: async <T,>(entity: Entity, id: number): Promise<T | null> => {
@@ -312,12 +336,66 @@ const api = {
                 comments: projectComments,
              } as T;
         }
+        
+        if (entity === 'subprojects') {
+            const subproject = item as SubProject;
+            const parentProject = db.projects.find(p => p.project_id === subproject.project_id);
+            const subprojectTasks = db.tasks
+                .filter(t => t.subproject_id === id)
+                .map(t => ({
+                    ...t,
+                    responsible_manager: db.managers.find(m => m.manager_id === t.responsible_manager_id),
+                    creator_manager: db.managers.find(m => m.manager_id === t.creator_manager_id),
+                }));
+            const subprojectComments = db.subproject_comments
+                .filter(c => c.subproject_id === id)
+                .map(c => ({
+                    ...c,
+                    manager: db.managers.find(m => m.manager_id === c.manager_id)
+                }))
+                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+            const subprojectProducts = db.subproject_products
+                .filter(pp => pp.subproject_id === id)
+                .map(pp => ({
+                    ...pp,
+                    product: db.products.find(p => p.product_id === pp.product_id)
+                }));
+            const subprojectServices = db.subproject_services
+                .filter(ps => ps.subproject_id === id)
+                .map(ps => ({
+                    ...ps,
+                    service: db.services.find(s => s.service_id === ps.service_id)
+                }));
+            
+            return {
+                ...subproject,
+                project: {
+                    ...parentProject,
+                    main_responsible_manager: db.managers.find(m => m.manager_id === parentProject?.main_responsible_manager_id),
+                },
+                tasks: subprojectTasks,
+                comments: subprojectComments,
+                subproject_products: subprojectProducts,
+                subproject_services: subprojectServices,
+            } as T;
+        }
 
         return { ...item } as T;
     },
     create: async <T,>(entity: Entity, data: any): Promise<T> => {
         await simulateNetwork();
         console.log(`[API MOCK] POST /api/${entity}`, data);
+        
+        if (entity === 'project_comments' || entity === 'subproject_comments') {
+             const idKey = 'comment_id';
+             const maxProjectCommentId = Math.max(0, ...db.project_comments.map(item => item.comment_id));
+             const maxSubProjectCommentId = Math.max(0, ...db.subproject_comments.map(item => item.comment_id));
+             const newId = Math.max(maxProjectCommentId, maxSubProjectCommentId) + 1;
+             const newItem = { ...data, [idKey]: newId };
+             // @ts-ignore
+             db[entity].push(newItem);
+             return newItem as T;
+        }
 
         if (entity === 'sales') {
             const { products: saleProducts, services: saleServices, ...saleData } = data;
@@ -387,6 +465,13 @@ const api = {
             // Cascade delete project products/services
             db.project_products = db.project_products.filter(pp => pp.project_id !== id);
             db.project_services = db.project_services.filter(ps => ps.project_id !== id);
+        }
+
+        if (entity === 'subprojects') {
+            db.tasks = db.tasks.filter(t => t.subproject_id !== id);
+            db.subproject_comments = db.subproject_comments.filter(c => c.subproject_id !== id);
+            db.subproject_products = db.subproject_products.filter(spp => spp.subproject_id !== id);
+            db.subproject_services = db.subproject_services.filter(sps => sps.subproject_id !== id);
         }
         
         if (entity === 'funnels') {

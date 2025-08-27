@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { HomeIcon, UsersIcon, BuildingOfficeIcon, CubeIcon, WrenchScrewdriverIcon, ShoppingCartIcon, BriefcaseIcon, ChartBarIcon, Cog6ToothIcon, ClipboardDocumentListIcon } from './Icons';
+import { HomeIcon, UsersIcon, BuildingOfficeIcon, CubeIcon, WrenchScrewdriverIcon, ShoppingCartIcon, BriefcaseIcon, ChartBarIcon, Cog6ToothIcon, ClipboardDocumentListIcon, ViewColumnsIcon } from './Icons';
 
 const navigation = [
   { name: 'Дашборд', href: '/', icon: HomeIcon },
@@ -9,6 +9,7 @@ const navigation = [
   { name: 'Послуги', href: '/services', icon: WrenchScrewdriverIcon },
   { name: 'Продажі', href: '/sales', icon: ShoppingCartIcon },
   { name: 'Проекти', href: '/projects', icon: BriefcaseIcon },
+  { name: 'Підпроекти', href: '/subprojects', icon: ViewColumnsIcon },
   { name: 'Завдання', href: '/tasks', icon: ClipboardDocumentListIcon },
   { name: 'Налаштування', href: '/settings', icon: Cog6ToothIcon },
 ];

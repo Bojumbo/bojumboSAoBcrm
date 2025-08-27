@@ -432,6 +432,7 @@ const ProjectDetail: React.FC = () => {
     const projectId = parseInt(id || '0');
     const [project, setProject] = useState<Project | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [managers, setManagers] = useState<Manager[]>([]);
     const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
     const [funnels, setFunnels] = useState<Funnel[]>([]);
@@ -520,7 +521,7 @@ const ProjectDetail: React.FC = () => {
     
     const handleSave = async () => {
         if (!project || !formData) return;
-        setLoading(true);
+        setIsSubmitting(true);
         try {
             const dataToSave = {
                 ...formData,
@@ -537,14 +538,14 @@ const ProjectDetail: React.FC = () => {
             console.error("Failed to save project", error);
             alert("Не вдалося зберегти зміни.");
         } finally {
-            setLoading(false);
+            setIsSubmitting(false);
         }
     };
 
     const handleDeleteProject = async () => {
         if (!project) return;
         if (window.confirm('Ви впевнені, що хочете видалити цей проект? Ця дія незворотна.')) {
-            setLoading(true);
+            setIsSubmitting(true);
             try {
                 await api.delete('projects', project.project_id);
                 alert('Проект успішно видалено.');
@@ -552,7 +553,8 @@ const ProjectDetail: React.FC = () => {
             } catch (error) {
                 console.error("Failed to delete project", error);
                 alert('Не вдалося видалити проект.');
-                setLoading(false);
+            } finally {
+                setIsSubmitting(false);
             }
         }
     };
@@ -703,14 +705,14 @@ const ProjectDetail: React.FC = () => {
                 <div className="flex-shrink-0 ml-4 flex items-center space-x-2">
                      <button
                         onClick={handleSave}
-                        disabled={!formData || loading}
+                        disabled={!formData || isSubmitting}
                         className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400 dark:disabled:bg-indigo-800"
                     >
-                        {loading ? 'Збереження...' : 'Зберегти зміни'}
+                        {isSubmitting ? 'Збереження...' : 'Зберегти зміни'}
                     </button>
                     <button
                         onClick={handleDeleteProject}
-                        disabled={loading}
+                        disabled={isSubmitting}
                         className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:bg-red-400 dark:disabled:bg-red-800"
                     >
                         <TrashIcon className="h-4 w-4 mr-2" />
