@@ -73,8 +73,8 @@ const TaskForm: React.FC<{
                     <input type="text" name="title" value={formData.title} onChange={handleChange} placeholder="Назва" required className={baseInputClasses}/>
                     <textarea name="description" value={formData.description} onChange={handleChange} placeholder="Опис" className={baseInputClasses}></textarea>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                         <select name="project_id" value={formData.project_id} onChange={handleChange} required className={baseInputClasses}>
-                            <option value="">-- Проект --</option>
+                         <select name="project_id" value={formData.project_id} onChange={handleChange} className={baseInputClasses}>
+                            <option value="">-- Проект (необов'язково) --</option>
                             {projects.map(p => <option key={p.project_id} value={p.project_id}>{p.name}</option>)}
                         </select>
                          <select name="subproject_id" value={formData.subproject_id} onChange={handleChange} disabled={!formData.project_id} className={`${baseInputClasses} disabled:bg-gray-200 dark:disabled:bg-gray-700`}>

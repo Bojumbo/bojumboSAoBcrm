@@ -68,11 +68,27 @@ export interface Sale {
   sale_date: string;
   status: string;
   deferred_payment_date?: string | null;
+  project_id?: number | null;
   counterparty?: Counterparty;
   responsible_manager?: Manager;
   products?: { product: Product; quantity: number }[];
   services?: Service[];
   total_price?: number;
+}
+
+export interface ProjectProduct {
+  project_product_id: number;
+  project_id: number;
+  product_id: number;
+  quantity: number;
+  product?: Product;
+}
+
+export interface ProjectService {
+  project_service_id: number;
+  project_id: number;
+  service_id: number;
+  service?: Service;
 }
 
 
@@ -82,10 +98,14 @@ export interface Project {
   responsible_manager_id: number | null;
   counterparty_id: number | null;
   status?: string;
+  forecast_amount: number;
   responsible_manager?: Manager;
   counterparty?: Counterparty;
   subprojects?: SubProject[];
   tasks?: Task[];
+  sales?: Sale[];
+  project_products?: ProjectProduct[];
+  project_services?: ProjectService[];
 }
 
 export interface SubProject {
@@ -93,6 +113,7 @@ export interface SubProject {
   name: string;
   project_id: number;
   status?: string;
+  cost: number;
 }
 
 export interface Task {

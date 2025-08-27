@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
@@ -16,6 +17,7 @@ const ProjectForm: React.FC<{
     const [formData, setFormData] = useState({
         name: '',
         status: projectStatuses[0]?.name || '',
+        forecast_amount: 0,
         ...project,
         // FIX: Removed duplicate `responsible_manager_id` and `counterparty_id` properties. The versions below handle both create and edit cases correctly.
         responsible_manager_id: project?.responsible_manager_id?.toString() || '',
@@ -23,7 +25,8 @@ const ProjectForm: React.FC<{
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: name === 'forecast_amount' ? parseFloat(value) : value });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -32,6 +35,7 @@ const ProjectForm: React.FC<{
             ...formData,
             responsible_manager_id: formData.responsible_manager_id ? parseInt(formData.responsible_manager_id) : null,
             counterparty_id: formData.counterparty_id ? parseInt(formData.counterparty_id) : null,
+            forecast_amount: Number(formData.forecast_amount) || 0,
         };
         if (project) {
             await api.update('projects', project.project_id, dataToSave);
@@ -49,6 +53,7 @@ const ProjectForm: React.FC<{
                 <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">{project ? 'Редагувати' : 'Додати'} проект</h3>
                 <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                     <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Назва проекту" required className={baseInputClasses}/>
+                    <input type="number" name="forecast_amount" value={formData.forecast_amount} onChange={handleChange} placeholder="Прогнозована сума" required min="0" step="0.01" className={baseInputClasses}/>
                     <select name="counterparty_id" value={formData.counterparty_id} onChange={handleChange} className={baseInputClasses}>
                         <option value="">-- Контрагент --</option>
                         {counterparties.map(c => <option key={c.counterparty_id} value={c.counterparty_id}>{c.name}</option>)}

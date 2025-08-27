@@ -1,11 +1,9 @@
-
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { HomeIcon, UsersIcon, BuildingOfficeIcon, CubeIcon, WrenchScrewdriverIcon, ShoppingCartIcon, BriefcaseIcon, ChartBarIcon, Cog6ToothIcon, ClipboardDocumentListIcon } from './Icons';
 
 const navigation = [
   { name: 'Дашборд', href: '/', icon: HomeIcon },
-  { name: 'Менеджери', href: '/managers', icon: UsersIcon },
   { name: 'Контрагенти', href: '/counterparties', icon: BuildingOfficeIcon },
   { name: 'Товари', href: '/products', icon: CubeIcon },
   { name: 'Послуги', href: '/services', icon: WrenchScrewdriverIcon },

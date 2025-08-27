@@ -1,5 +1,5 @@
 
-import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, ProjectStatusType, SubProjectStatusType } from '../types';
+import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, ProjectStatusType, SubProjectStatusType, ProjectProduct, ProjectService } from '../types';
 
 // In-memory database
 let managers: Manager[] = [
@@ -51,9 +51,9 @@ let subProjectStatuses: SubProjectStatusType[] = [
 ];
 
 let sales: Omit<Sale, 'counterparty' | 'responsible_manager' | 'products' | 'services' | 'total_price'>[] = [
-    { sale_id: 1, counterparty_id: 1, responsible_manager_id: 1, sale_date: new Date('2024-05-20').toISOString(), status: 'Оплачено', deferred_payment_date: null },
-    { sale_id: 2, counterparty_id: 2, responsible_manager_id: 1, sale_date: new Date('2024-05-22').toISOString(), status: 'Відтермінована оплата', deferred_payment_date: '2024-06-30' },
-    { sale_id: 3, counterparty_id: 1, responsible_manager_id: 2, sale_date: new Date().toISOString(), status: 'Не оплачено', deferred_payment_date: null },
+    { sale_id: 1, counterparty_id: 1, responsible_manager_id: 1, sale_date: new Date('2024-05-20').toISOString(), status: 'Оплачено', deferred_payment_date: null, project_id: 1 },
+    { sale_id: 2, counterparty_id: 2, responsible_manager_id: 1, sale_date: new Date('2024-05-22').toISOString(), status: 'Відтермінована оплата', deferred_payment_date: '2024-06-30', project_id: null },
+    { sale_id: 3, counterparty_id: 1, responsible_manager_id: 2, sale_date: new Date().toISOString(), status: 'Не оплачено', deferred_payment_date: null, project_id: null },
 ];
 
 let sales_products: { sale_id: number; product_id: number; quantity: number }[] = [
@@ -68,16 +68,24 @@ let sales_services: { sale_id: number; service_id: number }[] = [
     { sale_id: 2, service_id: 2 },
 ];
 
-let projects: Omit<Project, 'responsible_manager' | 'counterparty' | 'subprojects' | 'tasks'>[] = [
-    { project_id: 1, name: 'Розробка нового сайту', responsible_manager_id: 2, counterparty_id: 1, status: 'В роботі' },
+let projects: Omit<Project, 'responsible_manager' | 'counterparty' | 'subprojects' | 'tasks' | 'sales' | 'project_products' | 'project_services'>[] = [
+    { project_id: 1, name: 'Розробка нового сайту', responsible_manager_id: 2, counterparty_id: 1, status: 'В роботі', forecast_amount: 5000 },
 ];
 
 let subprojects: SubProject[] = [
-    { subproject_id: 1, name: 'Дизайн UI/UX', project_id: 1, status: 'В процесі' },
+    { subproject_id: 1, name: 'Дизайн UI/UX', project_id: 1, status: 'В процесі', cost: 1500 },
 ];
 
 let tasks: Omit<Task, 'responsible_manager' | 'creator_manager' | 'project' | 'subproject'>[] = [
     { task_id: 1, title: 'Створити макет головної сторінки', description: 'Підготувати декілька варіантів дизайну', responsible_manager_id: 2, creator_manager_id: 1, project_id: 1, subproject_id: 1, due_date: '2024-08-15' },
+];
+
+let project_products: Omit<ProjectProduct, 'product'>[] = [
+    { project_product_id: 1, project_id: 1, product_id: 2, quantity: 3 },
+];
+
+let project_services: Omit<ProjectService, 'service'>[] = [
+    { project_service_id: 1, project_id: 1, service_id: 1 },
 ];
 
 
@@ -97,6 +105,8 @@ const db = {
     saleStatuses,
     projectStatuses,
     subProjectStatuses,
+    project_products,
+    project_services,
 };
 
 type Entity = keyof typeof db;
@@ -120,6 +130,8 @@ const getIdKeyForEntity = (entity: Entity): string => {
         case 'projects': return 'project_id';
         case 'subprojects': return 'subproject_id';
         case 'tasks': return 'task_id';
+        case 'project_products': return 'project_product_id';
+        case 'project_services': return 'project_service_id';
         default: return 'id'; // Fallback
     }
 };
@@ -187,6 +199,34 @@ const api = {
         if (entity === 'projects') {
             // FIX: Cast item to Project to correctly access its properties.
             const project = item as Project;
+            
+            const projectSales = db.sales.filter(s => s.project_id === id).map(sale => {
+                const saleProducts = db.sales_products.filter(sp => sp.sale_id === sale.sale_id).map(sp => ({ product: db.products.find(p => p.product_id === sp.product_id), quantity: sp.quantity })).filter((p): p is { product: Product, quantity: number } => !!p.product);
+                const saleServices = db.sales_services.filter(ss => ss.sale_id === sale.sale_id).map(ss => db.services.find(s => s.service_id === ss.service_id)).filter((s): s is Service => !!s);
+                const productsTotal = saleProducts.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
+                const servicesTotal = saleServices.reduce((sum, item) => sum + (item?.price || 0), 0);
+
+                return {
+                  ...sale,
+                  responsible_manager: db.managers.find(m => m.manager_id === sale.responsible_manager_id),
+                  products: saleProducts,
+                  services: saleServices,
+                  total_price: productsTotal + servicesTotal,
+                };
+            });
+            const projectProducts = db.project_products
+                .filter(pp => pp.project_id === id)
+                .map(pp => ({
+                    ...pp,
+                    product: db.products.find(p => p.product_id === pp.product_id)
+                }));
+            const projectServices = db.project_services
+                .filter(ps => ps.project_id === id)
+                .map(ps => ({
+                    ...ps,
+                    service: db.services.find(s => s.service_id === ps.service_id)
+                }));
+
              return {
                 ...project,
                 responsible_manager: db.managers.find(m => m.manager_id === project.responsible_manager_id),
@@ -196,7 +236,10 @@ const api = {
                     ...t,
                     responsible_manager: db.managers.find(m => m.manager_id === t.responsible_manager_id),
                     creator_manager: db.managers.find(m => m.manager_id === t.creator_manager_id),
-                }))
+                })),
+                sales: projectSales,
+                project_products: projectProducts,
+                project_services: projectServices,
              } as T;
         }
 
@@ -259,6 +302,15 @@ const api = {
             // Cascade delete subprojects and tasks
             db.subprojects = db.subprojects.filter(sp => sp.project_id !== id);
             db.tasks = db.tasks.filter(t => t.project_id !== id);
+             // Unlink sales
+            db.sales.forEach(sale => {
+                if (sale.project_id === id) {
+                    sale.project_id = null;
+                }
+            });
+            // Cascade delete project products/services
+            db.project_products = db.project_products.filter(pp => pp.project_id !== id);
+            db.project_services = db.project_services.filter(ps => ps.project_id !== id);
         }
 
         // @ts-ignore
