@@ -91,6 +91,19 @@ export interface ProjectService {
   service?: Service;
 }
 
+export interface ProjectComment {
+  comment_id: number;
+  project_id: number;
+  manager_id: number;
+  content: string;
+  created_at: string; // ISO string
+  manager?: Manager;
+  file?: {
+    name: string;
+    type: string; // MIME type
+    url: string;  // data URL
+  } | null;
+}
 
 export interface Project {
   project_id: number;
@@ -106,6 +119,7 @@ export interface Project {
   sales?: Sale[];
   project_products?: ProjectProduct[];
   project_services?: ProjectService[];
+  comments?: ProjectComment[];
 }
 
 export interface SubProject {

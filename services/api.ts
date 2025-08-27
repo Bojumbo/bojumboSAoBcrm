@@ -1,5 +1,5 @@
 
-import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, ProjectStatusType, SubProjectStatusType, ProjectProduct, ProjectService } from '../types';
+import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, ProjectStatusType, SubProjectStatusType, ProjectProduct, ProjectService, ProjectComment } from '../types';
 
 // In-memory database
 let managers: Manager[] = [
@@ -68,7 +68,7 @@ let sales_services: { sale_id: number; service_id: number }[] = [
     { sale_id: 2, service_id: 2 },
 ];
 
-let projects: Omit<Project, 'responsible_manager' | 'counterparty' | 'subprojects' | 'tasks' | 'sales' | 'project_products' | 'project_services'>[] = [
+let projects: Omit<Project, 'responsible_manager' | 'counterparty' | 'subprojects' | 'tasks' | 'sales' | 'project_products' | 'project_services' | 'comments'>[] = [
     { project_id: 1, name: 'Розробка нового сайту', responsible_manager_id: 2, counterparty_id: 1, status: 'В роботі', forecast_amount: 5000 },
 ];
 
@@ -86,6 +86,11 @@ let project_products: Omit<ProjectProduct, 'product'>[] = [
 
 let project_services: Omit<ProjectService, 'service'>[] = [
     { project_service_id: 1, project_id: 1, service_id: 1 },
+];
+
+let project_comments: Omit<ProjectComment, 'manager'>[] = [
+    { comment_id: 1, project_id: 1, manager_id: 1, content: 'Пропоную розпочати з обговорення дизайну. Які є ідеї?', created_at: new Date('2024-07-28T10:00:00Z').toISOString(), file: null },
+    { comment_id: 2, project_id: 1, manager_id: 2, content: 'Підтримую. Я вже підготувала кілька референсів, зараз надішлю.', created_at: new Date('2024-07-28T10:05:00Z').toISOString(), file: null },
 ];
 
 
@@ -107,6 +112,7 @@ const db = {
     subProjectStatuses,
     project_products,
     project_services,
+    project_comments,
 };
 
 type Entity = keyof typeof db;
@@ -132,6 +138,7 @@ const getIdKeyForEntity = (entity: Entity): string => {
         case 'tasks': return 'task_id';
         case 'project_products': return 'project_product_id';
         case 'project_services': return 'project_service_id';
+        case 'project_comments': return 'comment_id';
         default: return 'id'; // Fallback
     }
 };
@@ -226,6 +233,14 @@ const api = {
                     ...ps,
                     service: db.services.find(s => s.service_id === ps.service_id)
                 }));
+            
+            const projectComments = db.project_comments
+                .filter(c => c.project_id === id)
+                .map(c => ({
+                    ...c,
+                    manager: db.managers.find(m => m.manager_id === c.manager_id)
+                }))
+                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
              return {
                 ...project,
@@ -240,6 +255,7 @@ const api = {
                 sales: projectSales,
                 project_products: projectProducts,
                 project_services: projectServices,
+                comments: projectComments,
              } as T;
         }
 
@@ -299,9 +315,10 @@ const api = {
         const initialLength = db[entity].length;
         
         if (entity === 'projects') {
-            // Cascade delete subprojects and tasks
+            // Cascade delete subprojects, tasks and comments
             db.subprojects = db.subprojects.filter(sp => sp.project_id !== id);
             db.tasks = db.tasks.filter(t => t.project_id !== id);
+            db.project_comments = db.project_comments.filter(c => c.project_id !== id);
              // Unlink sales
             db.sales.forEach(sale => {
                 if (sale.project_id === id) {

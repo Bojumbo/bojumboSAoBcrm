@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { Project, SubProject, Task, Manager, SubProjectStatusType, SaleStatusType, Product, Service, Sale } from '../types';
-import { BriefcaseIcon, UsersIcon, BuildingOfficeIcon, PencilIcon, TrashIcon, PlusIcon, ChartBarIcon, BanknotesIcon, ShoppingCartIcon } from '../components/Icons';
+import { BriefcaseIcon, UsersIcon, BuildingOfficeIcon, PencilIcon, TrashIcon, PlusIcon, ChartBarIcon, BanknotesIcon, ShoppingCartIcon, PaperAirplaneIcon, PaperClipIcon, XMarkIcon, DocumentArrowDownIcon } from '../components/Icons';
 
 const baseInputClasses = "w-full px-3 py-2 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
 
@@ -300,6 +300,131 @@ type ModalState = {
     item: any | null;
 };
 
+const ProjectChat: React.FC<{ 
+    project: Project; 
+    currentUser: Manager | null; 
+    onAddComment: (content: string, file: File | null) => void;
+}> = ({ project, currentUser, onAddComment }) => {
+    const [newComment, setNewComment] = useState('');
+    const [file, setFile] = useState<File | null>(null);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [project.comments]);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            // Check file size (e.g., 5MB limit)
+            if (e.target.files[0].size > 5 * 1024 * 1024) {
+                alert("Файл занадто великий. Максимальний розмір: 5MB.");
+                return;
+            }
+            setFile(e.target.files[0]);
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newComment.trim() || file) {
+            onAddComment(newComment, file);
+            setNewComment('');
+            setFile(null);
+            if(fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
+        }
+    };
+    
+    const formatTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+    };
+
+    return (
+        <div className="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Обговорення / Коментарі</h2>
+            <div className="flex flex-col space-y-4 h-96">
+                <div ref={chatContainerRef} className="flex-grow overflow-y-auto pr-4 space-y-4">
+                    {project.comments && project.comments.length > 0 ? (
+                        project.comments.map(comment => {
+                            const isCurrentUser = comment.manager_id === currentUser?.manager_id;
+                            return (
+                                <div key={comment.comment_id} className={`flex items-end gap-2 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-md lg:max-w-lg p-3 rounded-lg ${isCurrentUser ? 'bg-indigo-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}>
+                                        {!isCurrentUser && (
+                                            <p className="text-xs font-bold mb-1 text-indigo-600 dark:text-indigo-400">
+                                                {comment.manager?.first_name || '...'}
+                                            </p>
+                                        )}
+                                        {comment.file && (
+                                            <div className="mb-2">
+                                                {comment.file.type.startsWith('image/') ? (
+                                                    <a href={comment.file.url} target="_blank" rel="noopener noreferrer">
+                                                        <img src={comment.file.url} alt={comment.file.name} className="max-w-xs max-h-48 rounded-md object-cover cursor-pointer" />
+                                                    </a>
+                                                ) : (
+                                                    <a href={comment.file.url} download={comment.file.name} className={`flex items-center gap-3 p-2 rounded-md ${isCurrentUser ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'}`}>
+                                                       <DocumentArrowDownIcon className="h-6 w-6 flex-shrink-0"/>
+                                                       <span className="text-sm font-medium truncate">{comment.file.name}</span>
+                                                    </a>
+                                                )}
+                                            </div>
+                                        )}
+                                        {comment.content && <p className="text-sm break-words">{comment.content}</p>}
+                                        <p className={`text-xs mt-1 ${isCurrentUser ? 'text-indigo-200' : 'text-gray-500 dark:text-gray-400'} text-right`}>
+                                            {formatTime(comment.created_at)}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="flex items-center justify-center h-full">
+                            <p className="text-gray-500 dark:text-gray-400">Коментарів ще немає. Будьте першим!</p>
+                        </div>
+                    )}
+                </div>
+                <div className="flex-shrink-0 pt-4 border-t border-gray-200 dark:border-gray-700">
+                     {file && (
+                        <div className="mb-2 flex items-center justify-between bg-gray-100 dark:bg-gray-700/50 p-2 rounded-md text-sm">
+                            <span className="text-gray-700 dark:text-gray-200 truncate">{file.name}</span>
+                            <button onClick={() => { setFile(null); if(fileInputRef.current) fileInputRef.current.value = ""; }} className="p-1 text-red-500 hover:text-red-400 rounded-full">
+                                <XMarkIcon className="h-4 w-4"/>
+                            </button>
+                        </div>
+                    )}
+                    <form onSubmit={handleSubmit} className="flex items-center gap-2">
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+                        <button type="button" onClick={() => fileInputRef.current?.click()} className="p-3 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">
+                            <PaperClipIcon className="h-5 w-5"/>
+                        </button>
+                        <textarea
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            placeholder="Напишіть коментар..."
+                            className={`${baseInputClasses} resize-none`}
+                            rows={2}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSubmit(e);
+                                }
+                            }}
+                        />
+                        <button type="submit" className="p-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-400" disabled={!newComment.trim() && !file}>
+                            <PaperAirplaneIcon className="h-5 w-5"/>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ProjectDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const projectId = parseInt(id || '0');
@@ -311,6 +436,8 @@ const ProjectDetail: React.FC = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [modalState, setModalState] = useState<ModalState>({ type: null, item: null });
+    const [currentUser, setCurrentUser] = useState<Manager | null>(null);
+    const [activeTab, setActiveTab] = useState('overview');
 
     const fetchProjectAndDeps = useCallback(async () => {
         if (!projectId) return;
@@ -330,6 +457,12 @@ const ProjectDetail: React.FC = () => {
             setProducts(productsData);
             setServices(servicesData);
             setSaleStatuses(saleStatusesData);
+            
+            // Simulate a logged-in user (taking the first manager)
+            if (managersData.length > 0) {
+                setCurrentUser(managersData[0]);
+            }
+
         } catch (error) {
             console.error("Failed to fetch project details", error);
         } finally {
@@ -377,8 +510,6 @@ const ProjectDetail: React.FC = () => {
     };
 
     const handleDelete = async (type: 'task' | 'subproject' | 'sale' | 'project_product' | 'project_service', itemId: number) => {
-        // FIX: Added 'as const' to ensure entityMap values are treated as string literals,
-        // which resolves the type error when calling `api.delete`.
         const entityMap = {
             task: 'tasks',
             subproject: 'subprojects',
@@ -400,6 +531,48 @@ const ProjectDetail: React.FC = () => {
             await api.delete(entity, itemId);
             fetchProjectAndDeps();
         }
+    };
+    
+    const handleAddComment = async (content: string, file: File | null) => {
+        if (!currentUser) {
+            alert("Не вдалося визначити поточного користувача.");
+            return;
+        }
+
+        let fileData: { name: string, type: string, url: string } | null = null;
+        if (file) {
+            try {
+                fileData = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        if (event.target?.result) {
+                             resolve({
+                                name: file.name,
+                                type: file.type,
+                                url: event.target.result as string,
+                            });
+                        } else {
+                            reject(new Error("FileReader result is null."));
+                        }
+                    };
+                    reader.onerror = (error) => reject(error);
+                    reader.readAsDataURL(file);
+                });
+            } catch (error) {
+                console.error("Error reading file:", error);
+                alert("Не вдалося завантажити файл.");
+                return;
+            }
+        }
+        
+        await api.create('project_comments', {
+            project_id: projectId,
+            manager_id: currentUser.manager_id,
+            content: content,
+            created_at: new Date().toISOString(),
+            file: fileData,
+        });
+        fetchProjectAndDeps();
     };
 
     const { salesTotal, directCostsTotal, subprojectsTotal, totalProjectCost } = useMemo(() => {
@@ -449,169 +622,207 @@ const ProjectDetail: React.FC = () => {
                  return null;
         }
     };
+    
+    const getTabClassName = (tabName: string) => {
+        const baseClasses = "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm focus:outline-none";
+        if (activeTab === tabName) {
+            return `${baseClasses} border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400`;
+        }
+        return `${baseClasses} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600`;
+    };
+
+    const tabs = [
+        { id: 'overview', name: 'Огляд' },
+        { id: 'subprojects', name: 'Підпроекти' },
+        { id: 'tasks', name: 'Завдання' },
+        { id: 'sales', name: 'Продажі' },
+        { id: 'products_services', name: 'Товари та Послуги' }
+    ];
 
     return (
         <div>
             {renderModal()}
-            <div className="mb-8">
+            <div className="mb-6">
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white break-words">{project.name}</h1>
                 <p className="text-lg text-gray-500 dark:text-gray-400 mt-1">
                     {project.counterparty?.name || 'Без контрагента'}
                 </p>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                 <InfoCard title="Прогнозована сума" value={`${(project.forecast_amount || 0).toFixed(2)} грн`} icon={ChartBarIcon}/>
-                 <InfoCard title="Загальна вартість" value={`${totalProjectCost.toFixed(2)} грн`} icon={BanknotesIcon}/>
-                 <InfoCard title="Сума по продажах" value={`${salesTotal.toFixed(2)} грн`} icon={ShoppingCartIcon}/>
-                 <InfoCard title="Витрати (товари, послуги, підпроекти)" value={`${(directCostsTotal + subprojectsTotal).toFixed(2)} грн`} icon={BriefcaseIcon}/>
+            
+            <div className="border-b border-gray-200 dark:border-gray-700">
+                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                    {tabs.map(tab => (
+                         <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={getTabClassName(tab.id)}
+                            aria-current={activeTab === tab.id ? 'page' : undefined}
+                        >
+                            {tab.name}
+                        </button>
+                    ))}
+                </nav>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* SUBPROJECTS */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Підпроекти</h2>
-                         <button onClick={() => setModalState({ type: 'subproject', item: null })} className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 border border-transparent rounded-md hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900"><PlusIcon className="h-4 w-4 mr-2"/>Додати</button>
+            <div className="mt-8">
+                {activeTab === 'overview' && (
+                    <div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                             <InfoCard title="Прогнозована сума" value={`${(project.forecast_amount || 0).toFixed(2)} грн`} icon={ChartBarIcon}/>
+                             <InfoCard title="Загальна вартість" value={`${totalProjectCost.toFixed(2)} грн`} icon={BanknotesIcon}/>
+                             <InfoCard title="Сума по продажах" value={`${salesTotal.toFixed(2)} грн`} icon={ShoppingCartIcon}/>
+                             <InfoCard title="Витрати (товари, послуги, підпроекти)" value={`${(directCostsTotal + subprojectsTotal).toFixed(2)} грн`} icon={BriefcaseIcon}/>
+                        </div>
+                        <ProjectChat project={project} currentUser={currentUser} onAddComment={handleAddComment} />
                     </div>
-                    <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {project.subprojects && project.subprojects.length > 0 ? (
-                            project.subprojects.map(sp => (
-                                <li key={sp.subproject_id} className="py-3 flex justify-between items-center">
-                                    <div>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-gray-800 dark:text-gray-200">{sp.name}</span>
-                                            <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">{sp.status}</span>
-                                        </div>
-                                        <p className="text-sm text-indigo-600 dark:text-indigo-400 font-medium mt-1">{(sp.cost || 0).toFixed(2)} грн</p>
-                                    </div>
-                                    <div className="space-x-2">
-                                        <button onClick={() => setModalState({ type: 'subproject', item: sp })} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"><PencilIcon className="h-5 w-5"/></button>
-                                        <button onClick={() => handleDelete('subproject', sp.subproject_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1"><TrashIcon className="h-5 w-5"/></button>
-                                    </div>
-                                </li>
-                            ))
-                        ) : (
-                            <li className="py-3 text-gray-500 dark:text-gray-400">Немає підпроектів.</li>
-                        )}
-                    </ul>
-                </div>
-
-                {/* TASKS */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Завдання</h2>
-                        <button onClick={() => setModalState({ type: 'task', item: null })} className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 border border-transparent rounded-md hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900"><PlusIcon className="h-4 w-4 mr-2"/>Додати</button>
-                    </div>
-                     <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {project.tasks && project.tasks.length > 0 ? (
-                            project.tasks.map(task => (
-                                <li key={task.task_id} className="py-3">
-                                    <div className="flex justify-between items-start">
+                )}
+                
+                {activeTab === 'subprojects' && (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Підпроекти</h2>
+                             <button onClick={() => setModalState({ type: 'subproject', item: null })} className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 border border-transparent rounded-md hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900"><PlusIcon className="h-4 w-4 mr-2"/>Додати</button>
+                        </div>
+                        <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {project.subprojects && project.subprojects.length > 0 ? (
+                                project.subprojects.map(sp => (
+                                    <li key={sp.subproject_id} className="py-3 flex justify-between items-center">
                                         <div>
-                                            <p className="font-medium text-gray-800 dark:text-gray-200">{task.title}</p>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">{task.description}</p>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-gray-800 dark:text-gray-200">{sp.name}</span>
+                                                <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">{sp.status}</span>
+                                            </div>
+                                            <p className="text-sm text-indigo-600 dark:text-indigo-400 font-medium mt-1">{(sp.cost || 0).toFixed(2)} грн</p>
                                         </div>
-                                         <div className="space-x-2 flex-shrink-0 ml-4">
-                                            <button onClick={() => setModalState({ type: 'task', item: task })} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"><PencilIcon className="h-5 w-5"/></button>
-                                            <button onClick={() => handleDelete('task', task.task_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1"><TrashIcon className="h-5 w-5"/></button>
+                                        <div className="space-x-2">
+                                            <button onClick={() => setModalState({ type: 'subproject', item: sp })} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"><PencilIcon className="h-5 w-5"/></button>
+                                            <button onClick={() => handleDelete('subproject', sp.subproject_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1"><TrashIcon className="h-5 w-5"/></button>
                                         </div>
-                                    </div>
-                                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex flex-wrap gap-x-3">
-                                        <span>До: {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/A'}</span>
-                                        <span>|</span>
-                                        <span>Виконавець: {task.responsible_manager ? `${task.responsible_manager.first_name} ${task.responsible_manager.last_name}` : 'N/A'}</span>
-                                    </div>
-                                </li>
-                            ))
-                        ) : (
-                            <li className="py-3 text-gray-500 dark:text-gray-400">Немає завдань.</li>
-                        )}
-                    </ul>
-                </div>
-            </div>
-
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                 {/* SALES */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Продажі</h2>
-                        <button onClick={() => setModalState({ type: 'sale', item: null })} className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 border border-transparent rounded-md hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900"><PlusIcon className="h-4 w-4 mr-2"/>Додати продаж</button>
+                                    </li>
+                                ))
+                            ) : (
+                                <li className="py-3 text-gray-500 dark:text-gray-400">Немає підпроектів.</li>
+                            )}
+                        </ul>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                             <thead className="bg-gray-50 dark:bg-gray-700/50">
-                                <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Дата</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Сума</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Статус</th>
-                                    <th className="relative px-4 py-2"><span className="sr-only">Дії</span></th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                {project.sales && project.sales.length > 0 ? project.sales.map(sale => (
-                                    <tr key={sale.sale_id}>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{new Date(sale.sale_date).toLocaleDateString()}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{(sale.total_price || 0).toFixed(2)} грн</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{sale.status}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-right">
-                                            <button onClick={() => handleDelete('sale', sale.sale_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1"><TrashIcon className="h-5 w-5"/></button>
-                                        </td>
+                )}
+                
+                {activeTab === 'tasks' && (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Завдання</h2>
+                            <button onClick={() => setModalState({ type: 'task', item: null })} className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 border border-transparent rounded-md hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900"><PlusIcon className="h-4 w-4 mr-2"/>Додати</button>
+                        </div>
+                         <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {project.tasks && project.tasks.length > 0 ? (
+                                project.tasks.map(task => (
+                                    <li key={task.task_id} className="py-3">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-medium text-gray-800 dark:text-gray-200">{task.title}</p>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">{task.description}</p>
+                                            </div>
+                                             <div className="space-x-2 flex-shrink-0 ml-4">
+                                                <button onClick={() => setModalState({ type: 'task', item: task })} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"><PencilIcon className="h-5 w-5"/></button>
+                                                <button onClick={() => handleDelete('task', task.task_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1"><TrashIcon className="h-5 w-5"/></button>
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex flex-wrap gap-x-3">
+                                            <span>До: {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/A'}</span>
+                                            <span>|</span>
+                                            <span>Виконавець: {task.responsible_manager ? `${task.responsible_manager.first_name} ${task.responsible_manager.last_name}` : 'N/A'}</span>
+                                        </div>
+                                    </li>
+                                ))
+                            ) : (
+                                <li className="py-3 text-gray-500 dark:text-gray-400">Немає завдань.</li>
+                            )}
+                        </ul>
+                    </div>
+                )}
+                
+                {activeTab === 'sales' && (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Продажі</h2>
+                            <button onClick={() => setModalState({ type: 'sale', item: null })} className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 border border-transparent rounded-md hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900"><PlusIcon className="h-4 w-4 mr-2"/>Додати продаж</button>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                 <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Дата</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Сума</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Статус</th>
+                                        <th className="relative px-4 py-2"><span className="sr-only">Дії</span></th>
                                     </tr>
-                                )) : (
-                                    <tr><td colSpan={4} className="py-3 text-center text-gray-500 dark:text-gray-400">Немає продажів.</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                {/* PROJECT PRODUCTS & SERVICES */}
-                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Товари та Послуги</h2>
-                        <div className="space-x-2">
-                            <button onClick={() => setModalState({ type: 'project_product', item: null })} className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 border border-transparent rounded-md hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900"><PlusIcon className="h-4 w-4 mr-1"/>Товар</button>
-                            <button onClick={() => setModalState({ type: 'project_service', item: null })} className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 border border-transparent rounded-md hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900"><PlusIcon className="h-4 w-4 mr-1"/>Послугу</button>
+                                </thead>
+                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                    {project.sales && project.sales.length > 0 ? project.sales.map(sale => (
+                                        <tr key={sale.sale_id}>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{new Date(sale.sale_date).toLocaleDateString()}</td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{(sale.total_price || 0).toFixed(2)} грн</td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{sale.status}</td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-right">
+                                                <button onClick={() => handleDelete('sale', sale.sale_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1"><TrashIcon className="h-5 w-5"/></button>
+                                            </td>
+                                        </tr>
+                                    )) : (
+                                        <tr><td colSpan={4} className="py-3 text-center text-gray-500 dark:text-gray-400">Немає продажів.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                    <div className="overflow-x-auto">
-                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                             <thead className="bg-gray-50 dark:bg-gray-700/50">
-                                <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Назва</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">К-сть/Ціна</th>
-                                    <th className="relative px-4 py-2"><span className="sr-only">Дії</span></th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                {(project.project_products?.length || 0) === 0 && (project.project_services?.length || 0) === 0 && (
-                                    <tr><td colSpan={3} className="py-3 text-center text-gray-500 dark:text-gray-400">Немає товарів чи послуг.</td></tr>
-                                )}
+                )}
 
-                                {project.project_products?.map(pp => (
-                                    <tr key={`prod-${pp.project_product_id}`}>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{pp.product?.name}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{pp.quantity} x {(pp.product?.price || 0).toFixed(2)} грн</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-right">
-                                            <button onClick={() => handleDelete('project_product', pp.project_product_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1"><TrashIcon className="h-5 w-5"/></button>
-                                        </td>
+                {activeTab === 'products_services' && (
+                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Товари та Послуги</h2>
+                            <div className="space-x-2">
+                                <button onClick={() => setModalState({ type: 'project_product', item: null })} className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 border border-transparent rounded-md hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900"><PlusIcon className="h-4 w-4 mr-1"/>Товар</button>
+                                <button onClick={() => setModalState({ type: 'project_service', item: null })} className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-100 border border-transparent rounded-md hover:bg-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900"><PlusIcon className="h-4 w-4 mr-1"/>Послугу</button>
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                 <thead className="bg-gray-50 dark:bg-gray-700/50">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Назва</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">К-сть/Ціна</th>
+                                        <th className="relative px-4 py-2"><span className="sr-only">Дії</span></th>
                                     </tr>
-                                ))}
-                                {project.project_services?.map(ps => (
-                                     <tr key={`serv-${ps.project_service_id}`}>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{ps.service?.name}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{(ps.service?.price || 0).toFixed(2)} грн</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-right">
-                                            <button onClick={() => handleDelete('project_service', ps.project_service_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1"><TrashIcon className="h-5 w-5"/></button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                    {(project.project_products?.length || 0) === 0 && (project.project_services?.length || 0) === 0 && (
+                                        <tr><td colSpan={3} className="py-3 text-center text-gray-500 dark:text-gray-400">Немає товарів чи послуг.</td></tr>
+                                    )}
+
+                                    {project.project_products?.map(pp => (
+                                        <tr key={`prod-${pp.project_product_id}`}>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{pp.product?.name}</td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{pp.quantity} x {(pp.product?.price || 0).toFixed(2)} грн</td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-right">
+                                                <button onClick={() => handleDelete('project_product', pp.project_product_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1"><TrashIcon className="h-5 w-5"/></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {project.project_services?.map(ps => (
+                                         <tr key={`serv-${ps.project_service_id}`}>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{ps.service?.name}</td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{(ps.service?.price || 0).toFixed(2)} грн</td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-right">
+                                                <button onClick={() => handleDelete('project_service', ps.project_service_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1"><TrashIcon className="h-5 w-5"/></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
-
         </div>
     );
 };
