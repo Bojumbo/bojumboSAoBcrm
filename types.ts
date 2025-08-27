@@ -25,6 +25,14 @@ export interface Unit {
     name: string;
 }
 
+export interface ProductStock {
+  product_stock_id: number;
+  product_id: number;
+  warehouse_id: number;
+  quantity: number;
+  warehouse?: Warehouse;
+}
+
 export interface Product {
   product_id: number;
   name: string;
@@ -32,6 +40,8 @@ export interface Product {
   price: number;
   unit_id?: number | null;
   unit?: Unit;
+  stocks?: ProductStock[];
+  total_stock?: number;
 }
 
 export interface Service {

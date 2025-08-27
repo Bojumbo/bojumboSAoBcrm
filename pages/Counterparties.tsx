@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import { Counterparty, Manager, CounterpartyType } from '../types';
 import PageHeader from '../components/PageHeader';
-import { PencilIcon, TrashIcon } from '../components/Icons';
+import { PencilIcon, TrashIcon, FunnelIcon } from '../components/Icons';
 
 const CounterpartyForm: React.FC<{ counterparty?: Counterparty | null, onSave: () => void; onCancel: () => void; managers: Manager[] }> = ({ counterparty, onSave, onCancel, managers }) => {
     const [formData, setFormData] = useState({
@@ -61,6 +61,11 @@ const Counterparties: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCounterparty, setSelectedCounterparty] = useState<Counterparty | null>(null);
+    const [filters, setFilters] = useState({
+        name: '',
+        responsible_manager_id: '',
+        counterparty_type: '',
+    });
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -85,6 +90,23 @@ const Counterparties: React.FC = () => {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    const filteredCounterparties = useMemo(() => {
+        return counterparties.filter(c => {
+            const nameMatch = filters.name ? c.name.toLowerCase().includes(filters.name.toLowerCase()) : true;
+            const managerMatch = filters.responsible_manager_id ? c.responsible_manager_id?.toString() === filters.responsible_manager_id : true;
+            const typeMatch = filters.counterparty_type ? c.counterparty_type === filters.counterparty_type : true;
+            return nameMatch && managerMatch && typeMatch;
+        });
+    }, [counterparties, filters]);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const resetFilters = () => {
+        setFilters({ name: '', responsible_manager_id: '', counterparty_type: '' });
+    };
     
     const handleAdd = () => {
         setSelectedCounterparty(null);
@@ -108,9 +130,38 @@ const Counterparties: React.FC = () => {
         fetchData();
     };
 
+    const baseInputClasses = "w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
+
     return (
         <div>
             <PageHeader title="Контрагенти" buttonLabel="Додати контрагента" onButtonClick={handleAdd} />
+            
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 flex items-center mb-4">
+                    <FunnelIcon className="h-5 w-5 mr-2" />
+                    Фільтри
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input type="text" name="name" placeholder="Пошук за назвою..." value={filters.name} onChange={handleFilterChange} className={baseInputClasses} />
+                    <select name="responsible_manager_id" value={filters.responsible_manager_id} onChange={handleFilterChange} className={baseInputClasses}>
+                        <option value="">Всі менеджери</option>
+                        {managers.map(m => <option key={m.manager_id} value={m.manager_id}>{m.first_name} {m.last_name}</option>)}
+                    </select>
+                    <select name="counterparty_type" value={filters.counterparty_type} onChange={handleFilterChange} className={baseInputClasses}>
+                        <option value="">Всі типи</option>
+                        {Object.values(CounterpartyType).map(type => <option key={type} value={type}>{type}</option>)}
+                    </select>
+                </div>
+                <div className="mt-4 flex justify-end">
+                    <button
+                        onClick={resetFilters}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 border border-transparent rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                    >
+                        Скинути фільтри
+                    </button>
+                </div>
+            </div>
+
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
@@ -125,7 +176,7 @@ const Counterparties: React.FC = () => {
                         {loading ? (
                             <tr><td colSpan={4} className="text-center py-4">Завантаження...</td></tr>
                         ) : (
-                            counterparties.map((c) => (
+                            filteredCounterparties.map((c) => (
                                 <tr key={c.counterparty_id}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{c.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{c.counterparty_type}</td>
@@ -136,6 +187,9 @@ const Counterparties: React.FC = () => {
                                     </td>
                                 </tr>
                             ))
+                        )}
+                         {!loading && filteredCounterparties.length === 0 && (
+                            <tr><td colSpan={4} className="text-center py-4 text-gray-500 dark:text-gray-400">Немає контрагентів, що відповідають фільтрам.</td></tr>
                         )}
                     </tbody>
                 </table>

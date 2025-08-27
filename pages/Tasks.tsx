@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import { Task, Manager, Project, SubProject } from '../types';
 import PageHeader from '../components/PageHeader';
-import { PencilIcon, TrashIcon } from '../components/Icons';
+import { PencilIcon, TrashIcon, FunnelIcon } from '../components/Icons';
 
 const TaskForm: React.FC<{
     task?: Task | null;
@@ -113,6 +113,12 @@ const Tasks: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [filters, setFilters] = useState({
+        project_id: '',
+        subproject_id: '',
+        responsible_manager_id: '',
+    });
+    const [availableSubprojectsForFilter, setAvailableSubprojectsForFilter] = useState<SubProject[]>([]);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -138,6 +144,36 @@ const Tasks: React.FC = () => {
         fetchData();
     }, [fetchData]);
 
+    useEffect(() => {
+        if (filters.project_id) {
+            setAvailableSubprojectsForFilter(subprojects.filter(sp => sp.project_id.toString() === filters.project_id));
+        } else {
+            setAvailableSubprojectsForFilter([]);
+        }
+    }, [filters.project_id, subprojects]);
+
+    const filteredTasks = useMemo(() => {
+        return tasks.filter(t => {
+            const projectMatch = filters.project_id ? t.project_id?.toString() === filters.project_id : true;
+            const subprojectMatch = filters.subproject_id ? t.subproject_id?.toString() === filters.subproject_id : true;
+            const managerMatch = filters.responsible_manager_id ? t.responsible_manager_id?.toString() === filters.responsible_manager_id : true;
+            return projectMatch && subprojectMatch && managerMatch;
+        });
+    }, [tasks, filters]);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        const newFilters = { ...filters, [name]: value };
+        if (name === 'project_id') {
+            newFilters.subproject_id = '';
+        }
+        setFilters(newFilters);
+    };
+
+    const resetFilters = () => {
+        setFilters({ project_id: '', subproject_id: '', responsible_manager_id: '' });
+    };
+
     const handleAdd = () => {
         setSelectedTask(null);
         setIsModalOpen(true);
@@ -159,10 +195,42 @@ const Tasks: React.FC = () => {
         setIsModalOpen(false);
         fetchData();
     };
+    
+    const baseInputClasses = "w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
 
     return (
         <div>
             <PageHeader title="Завдання" buttonLabel="Додати завдання" onButtonClick={handleAdd} />
+            
+             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 flex items-center mb-4">
+                    <FunnelIcon className="h-5 w-5 mr-2" />
+                    Фільтри
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <select name="project_id" value={filters.project_id} onChange={handleFilterChange} className={baseInputClasses}>
+                        <option value="">Всі проекти</option>
+                        {projects.map(p => <option key={p.project_id} value={p.project_id}>{p.name}</option>)}
+                    </select>
+                    <select name="subproject_id" value={filters.subproject_id} onChange={handleFilterChange} disabled={!filters.project_id} className={`${baseInputClasses} disabled:bg-gray-200 dark:disabled:bg-gray-700`}>
+                        <option value="">Всі підпроекти</option>
+                        {availableSubprojectsForFilter.map(sp => <option key={sp.subproject_id} value={sp.subproject_id}>{sp.name}</option>)}
+                    </select>
+                    <select name="responsible_manager_id" value={filters.responsible_manager_id} onChange={handleFilterChange} className={baseInputClasses}>
+                        <option value="">Всі виконавці</option>
+                        {managers.map(m => <option key={m.manager_id} value={m.manager_id}>{m.first_name} {m.last_name}</option>)}
+                    </select>
+                </div>
+                <div className="mt-4 flex justify-end">
+                    <button
+                        onClick={resetFilters}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 border border-transparent rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                    >
+                        Скинути фільтри
+                    </button>
+                </div>
+            </div>
+
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
@@ -178,7 +246,7 @@ const Tasks: React.FC = () => {
                         {loading ? (
                             <tr><td colSpan={5} className="text-center py-4">Завантаження...</td></tr>
                         ) : (
-                            tasks.map((task) => (
+                            filteredTasks.map((task) => (
                                 <tr key={task.task_id}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{task.title}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
@@ -193,6 +261,9 @@ const Tasks: React.FC = () => {
                                     </td>
                                 </tr>
                             ))
+                        )}
+                        {!loading && filteredTasks.length === 0 && (
+                            <tr><td colSpan={5} className="text-center py-4 text-gray-500 dark:text-gray-400">Немає завдань, що відповідають фільтрам.</td></tr>
                         )}
                     </tbody>
                 </table>

@@ -1,5 +1,5 @@
 
-import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, ProjectStatusType, SubProjectStatusType, ProjectProduct, ProjectService, ProjectComment } from '../types';
+import { Manager, Counterparty, Product, Service, Warehouse, Sale, Project, SubProject, Task, CounterpartyType, Unit, SaleStatusType, ProjectStatusType, SubProjectStatusType, ProjectProduct, ProjectService, ProjectComment, ProductStock } from '../types';
 
 // In-memory database
 let managers: Manager[] = [
@@ -18,7 +18,7 @@ let units: Unit[] = [
     { unit_id: 3, name: 'уп.' },
 ];
 
-let products: Omit<Product, 'unit'>[] = [
+let products: Omit<Product, 'unit' | 'stocks' | 'total_stock'>[] = [
     { product_id: 1, name: 'Ноутбук Pro 15', description: 'Потужний ноутбук для професіоналів', price: 1500.00, unit_id: 1 },
     { product_id: 2, name: 'Миша Wireless X', description: 'Ергономічна бездротова миша', price: 50.00, unit_id: 1 },
 ];
@@ -30,6 +30,13 @@ let services: Service[] = [
 
 let warehouses: Warehouse[] = [
     { warehouse_id: 1, name: 'Основний склад', location: 'Київ, вул. Центральна, 1' },
+    { warehouse_id: 2, name: 'Склад №2', location: 'Львів, вул. Промислова, 5' },
+];
+
+let productStocks: Omit<ProductStock, 'warehouse'>[] = [
+    { product_stock_id: 1, product_id: 1, warehouse_id: 1, quantity: 10 },
+    { product_stock_id: 2, product_id: 2, warehouse_id: 1, quantity: 50 },
+    { product_stock_id: 3, product_id: 1, warehouse_id: 2, quantity: 5 },
 ];
 
 let saleStatuses: SaleStatusType[] = [
@@ -100,6 +107,7 @@ const db = {
     products,
     services,
     warehouses,
+    productStocks,
     sales,
     sales_products,
     sales_services,
@@ -129,6 +137,7 @@ const getIdKeyForEntity = (entity: Entity): string => {
         case 'products': return 'product_id';
         case 'services': return 'service_id';
         case 'warehouses': return 'warehouse_id';
+        case 'productStocks': return 'product_stock_id';
         case 'saleStatuses': return 'sale_status_id';
         case 'projectStatuses': return 'project_status_id';
         case 'subProjectStatuses': return 'sub_project_status_id';
@@ -158,15 +167,15 @@ const api = {
               // FIX: Replaced the specific type guard with a more robust one using `Exclude`
               // to work around a complex TypeScript inference issue with nested object types.
               .filter((item): item is Exclude<typeof item, null> => item !== null);
-    
+
             const saleServices = db.sales_services
               .filter(ss => ss.sale_id === sale.sale_id)
               .map(ss => db.services.find(s => s.service_id === ss.service_id))
               .filter((item): item is Service => !!item);
-    
+
             const productsTotal = saleProducts.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
             const servicesTotal = saleServices.reduce((sum, item) => sum + item.price, 0);
-    
+
             return {
               ...sale,
               counterparty: db.counterparties.find(c => c.counterparty_id === sale.counterparty_id),
@@ -178,10 +187,21 @@ const api = {
           }) as T[];
         }
         if (entity === 'products') {
-            return db.products.map(p => ({
-                ...p,
-                unit: db.units.find(u => u.unit_id === p.unit_id)
-            })) as T[];
+            return db.products.map(p => {
+                const stocks = db.productStocks
+                    .filter(ps => ps.product_id === p.product_id)
+                    .map(ps => ({
+                        ...ps,
+                        warehouse: db.warehouses.find(w => w.warehouse_id === ps.warehouse_id)
+                    }));
+                const total_stock = stocks.reduce((sum, s) => sum + s.quantity, 0);
+                return {
+                    ...p,
+                    unit: db.units.find(u => u.unit_id === p.unit_id),
+                    stocks,
+                    total_stock,
+                }
+            }) as T[];
         }
         if (entity === 'tasks') {
             return db.tasks.map(task => ({
@@ -200,13 +220,13 @@ const api = {
         const idKey = getIdKeyForEntity(entity);
         // @ts-ignore
         const item = db[entity].find(item => item[idKey] === id);
-        
+
         if (!item) return null;
-        
+
         if (entity === 'projects') {
             // FIX: Cast item to Project to correctly access its properties.
             const project = item as Project;
-            
+
             const projectSales = db.sales.filter(s => s.project_id === id).map(sale => {
                 const saleProducts = db.sales_products.filter(sp => sp.sale_id === sale.sale_id).map(sp => ({ product: db.products.find(p => p.product_id === sp.product_id), quantity: sp.quantity })).filter((p): p is { product: Product, quantity: number } => !!p.product);
                 const saleServices = db.sales_services.filter(ss => ss.sale_id === sale.sale_id).map(ss => db.services.find(s => s.service_id === ss.service_id)).filter((s): s is Service => !!s);
@@ -233,7 +253,7 @@ const api = {
                     ...ps,
                     service: db.services.find(s => s.service_id === ps.service_id)
                 }));
-            
+
             const projectComments = db.project_comments
                 .filter(c => c.project_id === id)
                 .map(c => ({
@@ -270,13 +290,18 @@ const api = {
             const idKey = `sale_id`;
             const newId = Math.max(0, ...db.sales.map(item => item[idKey])) + 1;
             const newSale = { ...saleData, [idKey]: newId };
-    
+
             // @ts-ignore
             db.sales.push(newSale);
-    
+
             if (saleProducts) {
                 saleProducts.forEach((p: { product_id: number, quantity: number }) => {
                     db.sales_products.push({ sale_id: newId, product_id: p.product_id, quantity: p.quantity });
+                    // Deduct from stock (defaulting to warehouse 1)
+                    const stockItem = db.productStocks.find(ps => ps.product_id === p.product_id && ps.warehouse_id === 1);
+                    if (stockItem) {
+                        stockItem.quantity -= p.quantity;
+                    }
                 });
             }
             if (saleServices) {
@@ -286,7 +311,7 @@ const api = {
             }
             return newSale as T;
         }
-        
+
         const idKey = getIdKeyForEntity(entity);
         // @ts-ignore
         const newId = Math.max(0, ...db[entity].map(item => item[idKey])) + 1;
@@ -313,7 +338,7 @@ const api = {
         const idKey = getIdKeyForEntity(entity);
         // @ts-ignore
         const initialLength = db[entity].length;
-        
+
         if (entity === 'projects') {
             // Cascade delete subprojects, tasks and comments
             db.subprojects = db.subprojects.filter(sp => sp.project_id !== id);
@@ -332,15 +357,34 @@ const api = {
 
         // @ts-ignore
         db[entity] = db[entity].filter(item => item[idKey] !== id);
-        
+
         if (entity === 'sales') {
             // @ts-ignore
             db.sales_products = db.sales_products.filter(item => item.sale_id !== id);
             // @ts-ignore
             db.sales_services = db.sales_services.filter(item => item.sale_id !== id);
         }
+        
+        if (entity === 'products') {
+            db.productStocks = db.productStocks.filter(ps => ps.product_id !== id);
+        }
 
         return db[entity].length < initialLength;
+    },
+    setProductStocks: async (productId: number, stocks: { warehouse_id: number, quantity: number }[]): Promise<boolean> => {
+        await simulateNetwork(200);
+        console.log(`[API MOCK] POST /api/products/${productId}/stock`, stocks);
+        stocks.forEach(stockUpdate => {
+            let stock = db.productStocks.find(ps => ps.product_id === productId && ps.warehouse_id === stockUpdate.warehouse_id);
+            if (stock) {
+                stock.quantity = stockUpdate.quantity;
+            } else {
+                 const newId = Math.max(0, ...db.productStocks.map(item => item.product_stock_id)) + 1;
+                 const newStock: Omit<ProductStock, 'warehouse'> = { product_stock_id: newId, product_id: productId, warehouse_id: stockUpdate.warehouse_id, quantity: stockUpdate.quantity };
+                 db.productStocks.push(newStock);
+            }
+        });
+        return true;
     },
 };
 

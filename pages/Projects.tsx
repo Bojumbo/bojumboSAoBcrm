@@ -1,10 +1,9 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { Project, Manager, Counterparty, ProjectStatusType } from '../types';
 import PageHeader from '../components/PageHeader';
-import { PencilIcon, TrashIcon } from '../components/Icons';
+import { PencilIcon, TrashIcon, FunnelIcon } from '../components/Icons';
 
 const ProjectForm: React.FC<{
     project?: Project | null;
@@ -84,6 +83,11 @@ const Projects: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    const [filters, setFilters] = useState({
+        counterparty_id: '',
+        responsible_manager_id: '',
+        status: '',
+    });
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -114,6 +118,23 @@ const Projects: React.FC = () => {
         fetchData();
     }, [fetchData]);
 
+    const filteredProjects = useMemo(() => {
+        return projects.filter(p => {
+            const counterpartyMatch = filters.counterparty_id ? p.counterparty_id?.toString() === filters.counterparty_id : true;
+            const managerMatch = filters.responsible_manager_id ? p.responsible_manager_id?.toString() === filters.responsible_manager_id : true;
+            const statusMatch = filters.status ? p.status === filters.status : true;
+            return counterpartyMatch && managerMatch && statusMatch;
+        });
+    }, [projects, filters]);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+    
+    const resetFilters = () => {
+        setFilters({ counterparty_id: '', responsible_manager_id: '', status: '' });
+    };
+
     const handleAdd = () => {
         setSelectedProject(null);
         setIsModalOpen(true);
@@ -135,10 +156,42 @@ const Projects: React.FC = () => {
         setIsModalOpen(false);
         fetchData();
     };
+    
+    const baseInputClasses = "w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
 
     return (
         <div>
             <PageHeader title="Проекти" buttonLabel="Додати проект" onButtonClick={handleAdd} />
+
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 flex items-center mb-4">
+                    <FunnelIcon className="h-5 w-5 mr-2" />
+                    Фільтри
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <select name="counterparty_id" value={filters.counterparty_id} onChange={handleFilterChange} className={baseInputClasses}>
+                        <option value="">Всі контрагенти</option>
+                        {counterparties.map(c => <option key={c.counterparty_id} value={c.counterparty_id}>{c.name}</option>)}
+                    </select>
+                    <select name="responsible_manager_id" value={filters.responsible_manager_id} onChange={handleFilterChange} className={baseInputClasses}>
+                        <option value="">Всі менеджери</option>
+                        {managers.map(m => <option key={m.manager_id} value={m.manager_id}>{m.first_name} {m.last_name}</option>)}
+                    </select>
+                    <select name="status" value={filters.status} onChange={handleFilterChange} className={baseInputClasses}>
+                        <option value="">Всі статуси</option>
+                        {projectStatuses.map(s => <option key={s.project_status_id} value={s.name}>{s.name}</option>)}
+                    </select>
+                </div>
+                <div className="mt-4 flex justify-end">
+                    <button
+                        onClick={resetFilters}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 border border-transparent rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                    >
+                        Скинути фільтри
+                    </button>
+                </div>
+            </div>
+
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
@@ -154,7 +207,7 @@ const Projects: React.FC = () => {
                         {loading ? (
                             <tr><td colSpan={5} className="text-center py-4">Завантаження...</td></tr>
                         ) : (
-                            projects.map((p) => (
+                            filteredProjects.map((p) => (
                                 <tr key={p.project_id}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{p.counterparty?.name || 'N/A'}</td>
@@ -167,6 +220,9 @@ const Projects: React.FC = () => {
                                     </td>
                                 </tr>
                             ))
+                        )}
+                        {!loading && filteredProjects.length === 0 && (
+                            <tr><td colSpan={5} className="text-center py-4 text-gray-500 dark:text-gray-400">Немає проектів, що відповідають фільтрам.</td></tr>
                         )}
                     </tbody>
                 </table>

@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import { Sale, Manager, Counterparty, Product, Service, SaleStatusType } from '../types';
 import PageHeader from '../components/PageHeader';
-import { TrashIcon, PlusIcon } from '../components/Icons';
+import { TrashIcon, PlusIcon, FunnelIcon } from '../components/Icons';
 
 // --- SaleForm Component ---
 const SaleForm: React.FC<{
@@ -61,8 +60,22 @@ const SaleForm: React.FC<{
 
     const handleProductChange = (index: number, field: 'product_id' | 'quantity', value: string) => {
         const newProducts = [...formData.products];
-        const val = field === 'quantity' ? Math.max(1, parseInt(value) || 1) : value;
-        newProducts[index] = { ...newProducts[index], [field]: val };
+        
+        if (field === 'quantity') {
+            const productInfo = products.find(p => p.product_id.toString() === newProducts[index].product_id);
+            const availableStock = productInfo?.total_stock || 0;
+            const requestedQuantity = parseInt(value, 10);
+            
+            if (requestedQuantity > availableStock) {
+                alert(`Недостатньо товару на складі. Доступно: ${availableStock}`);
+                newProducts[index] = { ...newProducts[index], quantity: availableStock };
+            } else {
+                 newProducts[index] = { ...newProducts[index], quantity: Math.max(1, requestedQuantity || 1) };
+            }
+        } else {
+            newProducts[index] = { ...newProducts[index], product_id: value };
+        }
+        
         setFormData({ ...formData, products: newProducts });
     };
 
@@ -153,14 +166,14 @@ const SaleForm: React.FC<{
                         <div className="space-y-3">
                             {formData.products.map((p, index) => {
                                  const availableProducts = products.filter(
-                                    prod => prod.product_id.toString() === p.product_id || !formData.products.some(fp => fp.product_id === prod.product_id.toString())
+                                    prod => (prod.total_stock || 0) > 0 && (prod.product_id.toString() === p.product_id || !formData.products.some(fp => fp.product_id === prod.product_id.toString()))
                                  );
                                  const selectedProduct = products.find(prod => prod.product_id.toString() === p.product_id);
                                 return (
                                 <div key={index} className="flex items-center gap-2">
                                     <select value={p.product_id} onChange={(e) => handleProductChange(index, 'product_id', e.target.value)} className={`${baseInputClasses} flex-grow`} required>
                                         <option value="" disabled>Виберіть товар</option>
-                                        {availableProducts.map(prod => <option key={prod.product_id} value={prod.product_id}>{prod.name} ({prod.price.toFixed(2)} грн)</option>)}
+                                        {availableProducts.map(prod => <option key={prod.product_id} value={prod.product_id}>{prod.name} (Залишок: {prod.total_stock || 0})</option>)}
                                     </select>
                                     <input type="number" min="1" value={p.quantity} onChange={(e) => handleProductChange(index, 'quantity', e.target.value)} className={`${baseInputClasses} w-24 text-center`} placeholder="К-сть"/>
                                     <span className="w-28 text-right text-sm font-medium text-gray-700 dark:text-gray-300 pr-2">
@@ -226,13 +239,19 @@ const Sales: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     
-    // Data for the form
+    // Data for the form and filters
     const [managers, setManagers] = useState<Manager[]>([]);
     const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [saleStatuses, setSaleStatuses] = useState<SaleStatusType[]>([]);
-
+    const [filters, setFilters] = useState({
+        counterparty_id: '',
+        responsible_manager_id: '',
+        status: '',
+        startDate: '',
+        endDate: '',
+    });
 
     const fetchSalesAndDeps = useCallback(async () => {
         setLoading(true);
@@ -262,6 +281,38 @@ const Sales: React.FC = () => {
         fetchSalesAndDeps();
     }, [fetchSalesAndDeps]);
 
+    const filteredSales = useMemo(() => {
+        return sales.filter(s => {
+            const counterpartyMatch = filters.counterparty_id ? s.counterparty_id.toString() === filters.counterparty_id : true;
+            const managerMatch = filters.responsible_manager_id ? s.responsible_manager_id.toString() === filters.responsible_manager_id : true;
+            const statusMatch = filters.status ? s.status === filters.status : true;
+            
+            const saleDate = new Date(s.sale_date);
+            const startDateMatch = filters.startDate ? saleDate >= new Date(filters.startDate) : true;
+            const endDateMatch = filters.endDate ? saleDate <= new Date(new Date(filters.endDate).setHours(23, 59, 59, 999)) : true;
+
+            return counterpartyMatch && managerMatch && statusMatch && startDateMatch && endDateMatch;
+        });
+    }, [sales, filters]);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+    
+    const resetFilters = () => {
+        setFilters({
+            counterparty_id: '',
+            responsible_manager_id: '',
+            status: '',
+            startDate: '',
+            endDate: '',
+        });
+    };
+
+    const handleAdd = () => {
+        setIsModalOpen(true);
+    };
+
     const handleDelete = async (id: number) => {
         if (window.confirm('Ви впевнені, що хочете видалити цей продаж?')) {
             await api.delete('sales', id);
@@ -269,99 +320,92 @@ const Sales: React.FC = () => {
         }
     };
 
-    const handleStatusChange = async (saleId: number, newStatus: string) => {
-        const originalSale = sales.find(s => s.sale_id === saleId);
-        if (!originalSale || originalSale.status === newStatus) return;
-
-        try {
-            const updatePayload: { status: string; deferred_payment_date?: string | null } = { status: newStatus };
-            // If the status is no longer 'Deferred Payment', clear the date.
-            if (originalSale.status === 'Відтермінована оплата' && newStatus !== 'Відтермінована оплата') {
-                updatePayload.deferred_payment_date = null;
-            }
-            
-            await api.update('sales', saleId, updatePayload);
-            // Refetch all data to ensure consistency.
-            fetchSalesAndDeps();
-        } catch (error) {
-            console.error("Failed to update sale status", error);
-            alert("Не вдалося оновити статус.");
-        }
-    };
-    
-    const handleAdd = () => setIsModalOpen(true);
-    const handleCloseModal = () => setIsModalOpen(false);
     const handleSave = () => {
-        handleCloseModal();
+        setIsModalOpen(false);
         fetchSalesAndDeps();
     };
+    
+    const baseInputClasses = "w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500";
 
     return (
         <div>
             <PageHeader title="Продажі" buttonLabel="Додати продаж" onButtonClick={handleAdd} />
+            
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 flex items-center mb-4">
+                    <FunnelIcon className="h-5 w-5 mr-2" />
+                    Фільтри
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <select name="counterparty_id" value={filters.counterparty_id} onChange={handleFilterChange} className={baseInputClasses}>
+                        <option value="">Всі контрагенти</option>
+                        {counterparties.map(c => <option key={c.counterparty_id} value={c.counterparty_id}>{c.name}</option>)}
+                    </select>
+                    <select name="responsible_manager_id" value={filters.responsible_manager_id} onChange={handleFilterChange} className={baseInputClasses}>
+                        <option value="">Всі менеджери</option>
+                        {managers.map(m => <option key={m.manager_id} value={m.manager_id}>{m.first_name} {m.last_name}</option>)}
+                    </select>
+                    <select name="status" value={filters.status} onChange={handleFilterChange} className={baseInputClasses}>
+                        <option value="">Всі статуси</option>
+                        {saleStatuses.map(s => <option key={s.sale_status_id} value={s.name}>{s.name}</option>)}
+                    </select>
+                    <div className="md:col-span-2 lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Дата від</label>
+                            <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className={baseInputClasses} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Дата до</label>
+                            <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className={baseInputClasses} />
+                        </div>
+                    </div>
+                </div>
+                 <div className="mt-4 flex justify-end">
+                    <button
+                        onClick={resetFilters}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 border border-transparent rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                    >
+                        Скинути фільтри
+                    </button>
+                </div>
+            </div>
+
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Дата</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Контрагент</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Менеджер</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Дата</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Сума</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Статус</th>
-                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Сума</th>
                             <th scope="col" className="relative px-6 py-3"><span className="sr-only">Дії</span></th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         {loading ? (
-                            <tr><td colSpan={7} className="text-center py-4">Завантаження...</td></tr>
+                            <tr><td colSpan={6} className="text-center py-4">Завантаження...</td></tr>
                         ) : (
-                            sales.map((s) => (
+                            filteredSales.map((s) => (
                                 <tr key={s.sale_id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{s.sale_id}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{s.counterparty?.name || 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{s.responsible_manager ? `${s.responsible_manager.first_name} ${s.responsible_manager.last_name}` : 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{new Date(s.sale_date).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                                        <select
-                                            value={s.status}
-                                            onChange={(e) => handleStatusChange(s.sale_id, e.target.value)}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:border-indigo-500 focus:ring-indigo-500 text-sm p-1 shadow-sm"
-                                        >
-                                            {saleStatuses.map(status => (
-                                                <option key={status.sale_status_id} value={status.name}>
-                                                    {status.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {s.status === 'Відтермінована оплата' && s.deferred_payment_date && (
-                                            <span className="block text-xs text-gray-400 mt-1">
-                                                до {new Date(s.deferred_payment_date).toLocaleDateString()}
-                                            </span>
-                                        )}
-                                    </td>
-                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 font-medium">{(s.total_price || 0).toFixed(2)} грн.</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{s.counterparty?.name || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{s.responsible_manager ? `${s.responsible_manager.first_name} ${s.responsible_manager.last_name}` : 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{(s.total_price || 0).toFixed(2)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{s.status}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                         <button onClick={() => handleDelete(s.sale_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"><TrashIcon className="h-5 w-5"/></button>
                                     </td>
                                 </tr>
                             ))
                         )}
+                        {!loading && filteredSales.length === 0 && (
+                            <tr><td colSpan={6} className="text-center py-4 text-gray-500 dark:text-gray-400">Немає продажів, що відповідають фільтрам.</td></tr>
+                        )}
                     </tbody>
                 </table>
             </div>
-             {isModalOpen && (
-                <SaleForm
-                    onSave={handleSave}
-                    onCancel={handleCloseModal}
-                    managers={managers}
-                    counterparties={counterparties}
-                    products={products}
-                    services={services}
-                    saleStatuses={saleStatuses}
-                />
-            )}
+            {isModalOpen && <SaleForm onSave={handleSave} onCancel={() => setIsModalOpen(false)} managers={managers} counterparties={counterparties} products={products} services={services} saleStatuses={saleStatuses} />}
         </div>
     );
 };

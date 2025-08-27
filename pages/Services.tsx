@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import { Service } from '../types';
 import PageHeader from '../components/PageHeader';
-import { PencilIcon, TrashIcon } from '../components/Icons';
+import { PencilIcon, TrashIcon, FunnelIcon } from '../components/Icons';
 
 const ServiceForm: React.FC<{ service?: Service | null; onSave: () => void; onCancel: () => void; }> = ({ service, onSave, onCancel }) => {
     const [formData, setFormData] = useState({
@@ -51,6 +51,7 @@ const Services: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedService, setSelectedService] = useState<Service | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const fetchServices = useCallback(async () => {
         setLoading(true);
@@ -67,6 +68,12 @@ const Services: React.FC = () => {
     useEffect(() => {
         fetchServices();
     }, [fetchServices]);
+
+    const filteredServices = useMemo(() => {
+        return services.filter(s =>
+            s.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [services, searchTerm]);
     
     const handleAdd = () => {
         setSelectedService(null);
@@ -93,6 +100,20 @@ const Services: React.FC = () => {
     return (
         <div>
             <PageHeader title="Послуги" buttonLabel="Додати послугу" onButtonClick={handleAdd} />
+            
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                <div className="flex items-center">
+                    <FunnelIcon className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Пошук за назвою..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                </div>
+            </div>
+
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
@@ -107,7 +128,7 @@ const Services: React.FC = () => {
                         {loading ? (
                             <tr><td colSpan={4} className="text-center py-4">Завантаження...</td></tr>
                         ) : (
-                            services.map((s) => (
+                            filteredServices.map((s) => (
                                 <tr key={s.service_id}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{s.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 max-w-sm truncate">{s.description}</td>
@@ -118,6 +139,9 @@ const Services: React.FC = () => {
                                     </td>
                                 </tr>
                             ))
+                        )}
+                        {!loading && filteredServices.length === 0 && (
+                            <tr><td colSpan={4} className="text-center py-4 text-gray-500 dark:text-gray-400">Немає послуг, що відповідають пошуку.</td></tr>
                         )}
                     </tbody>
                 </table>
