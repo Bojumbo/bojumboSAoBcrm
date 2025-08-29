@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import api from '../services/api';
+import { ProductsService } from '../src/services/apiService';
+import { HttpClient, PaginatedResponse } from '../src/services/httpClient';
+import { API_CONFIG } from '../src/config/api';
 import { Product, Unit, Warehouse } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PencilIcon, TrashIcon, CubeIcon, FunnelIcon } from '../components/Icons';
@@ -27,9 +29,9 @@ const ProductForm: React.FC<{ product?: Product | null; onSave: () => void; onCa
             unit_id: formData.unit_id ? parseInt(formData.unit_id) : null,
         };
         if (product) {
-            await api.update('products', product.product_id, dataToSave);
+            await ProductsService.update(product.product_id, dataToSave as any);
         } else {
-            await api.create('products', dataToSave);
+            await ProductsService.create(dataToSave as any);
         }
         onSave();
     };
@@ -88,7 +90,7 @@ const StockManagerModal: React.FC<{
             warehouse_id: parseInt(warehouse_id),
             quantity
         }));
-        await api.setProductStocks(product.product_id, stocksToUpdate);
+        await ProductsService.setProductStocks(product.product_id, stocksToUpdate as any);
         onSave();
     };
 
@@ -136,13 +138,13 @@ const Products: React.FC = () => {
         setLoading(true);
         try {
             const [productsData, unitsData, warehousesData] = await Promise.all([
-                api.getAll<Product>('products'),
-                api.getAll<Unit>('units'),
-                api.getAll<Warehouse>('warehouses'),
+                ProductsService.getAll(),
+                HttpClient.get<PaginatedResponse<Unit>>(API_CONFIG.ENDPOINTS.UNITS),
+                HttpClient.get<PaginatedResponse<Warehouse>>(API_CONFIG.ENDPOINTS.WAREHOUSES),
             ]);
-            setProducts(productsData);
-            setUnits(unitsData);
-            setWarehouses(warehousesData);
+            setProducts((productsData as any).data);
+            setUnits(unitsData.data);
+            setWarehouses(warehousesData.data);
         } catch (error) {
             console.error("Failed to fetch products or units", error);
         } finally {
@@ -177,7 +179,7 @@ const Products: React.FC = () => {
 
     const handleDelete = async (id: number) => {
         if (window.confirm('Ви впевнені, що хочете видалити цей товар? Усі пов\'язані записи про залишки на складах також будуть видалені.')) {
-            await api.delete('products', id);
+            await ProductsService.delete(id);
             fetchData();
         }
     };
@@ -225,9 +227,9 @@ const Products: React.FC = () => {
                                 <tr key={p.product_id} className="hover:bg-[var(--table-row-hover-bg)] transition-colors duration-200">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--text-primary)]">{p.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)] max-w-sm truncate">{p.description}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{p.price.toFixed(2)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{Number(p.price).toFixed(2)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{p.unit?.name || '-'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-[var(--text-primary)]">{p.total_stock || 0}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-[var(--text-primary)]">{(p as any).total_stock ?? (p.stocks ? p.stocks.reduce((sum, s) => sum + (s.quantity || 0), 0) : 0)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                                         <button onClick={() => handleManageStock(p)} title="Керувати залишками" className="text-green-400 hover:text-green-300"><CubeIcon className="h-5 w-5"/></button>
                                         <button onClick={() => handleEdit(p)} title="Редагувати" className="text-indigo-400 hover:text-indigo-300"><PencilIcon className="h-5 w-5"/></button>

@@ -1,0 +1,15 @@
+# Cursor ignore file
+# This file tells Cursor which files to ignore
+
+# Keep .env files editable
+!.env
+!backend/.env
+!frontend/.env
+
+# Ignore other common files
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+Thumbs.db

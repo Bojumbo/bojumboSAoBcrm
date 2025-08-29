@@ -30,6 +30,26 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('crm-theme', theme);
+    // Ensure background image switches reliably for light theme
+    if (theme === 'light') {
+      const primaryUrl = (import.meta as any)?.env?.VITE_LIGHT_BG_URL || '/light-theme-bg.jpg';
+      const fallbackUrl = 'https://wallpapers.com/images/high/aesthetic-pastel-background-1920-x-1200-8cjr6e6yuj5gabn9.webp';
+      try {
+        const tester = new Image();
+        tester.onload = () => {
+          document.documentElement.style.setProperty('--bg-image', `url('${primaryUrl}')`);
+        };
+        tester.onerror = () => {
+          document.documentElement.style.setProperty('--bg-image', `url('${fallbackUrl}')`);
+        };
+        tester.src = primaryUrl;
+      } catch {
+        document.documentElement.style.setProperty('--bg-image', `url('${fallbackUrl}')`);
+      }
+    } else {
+      // Remove inline override to fall back to CSS-defined dark image
+      document.documentElement.style.removeProperty('--bg-image');
+    }
   }, [theme]);
 
   const toggleTheme = useCallback(() => {

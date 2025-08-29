@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import api from '../services/api';
+import { TasksService, ManagersService, ProjectsService, SubProjectsService } from '../src/services/apiService';
 import { Task, Manager, Project, SubProject } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PencilIcon, TrashIcon, FunnelIcon } from '../components/Icons';
@@ -56,9 +56,9 @@ const TaskForm: React.FC<{
             subproject_id: formData.subproject_id ? parseInt(formData.subproject_id) : null,
         };
         if (task) {
-            await api.update('tasks', task.task_id, dataToSave);
+            await TasksService.update(task.task_id, dataToSave as any);
         } else {
-            await api.create('tasks', dataToSave);
+            await TasksService.create(dataToSave as any);
         }
         onSave();
     };
@@ -124,15 +124,15 @@ const Tasks: React.FC = () => {
         setLoading(true);
         try {
             const [tData, mData, pData, spData] = await Promise.all([
-                api.getAll<Task>('tasks'),
-                api.getAll<Manager>('managers'),
-                api.getAll<Project>('projects'),
-                api.getAll<SubProject>('subprojects')
+                TasksService.getAll(),
+                ManagersService.getAll(),
+                ProjectsService.getAll(),
+                SubProjectsService.getAll()
             ]);
-            setTasks(tData);
-            setManagers(mData);
-            setProjects(pData);
-            setSubprojects(spData);
+            setTasks((tData as any).data);
+            setManagers((mData as any).data);
+            setProjects((pData as any).data);
+            setSubprojects((spData as any).data);
         } catch (error) {
             console.error("Failed to fetch data", error);
         } finally {
@@ -186,7 +186,7 @@ const Tasks: React.FC = () => {
 
     const handleDelete = async (id: number) => {
         if (window.confirm('Ви впевнені, що хочете видалити це завдання?')) {
-            await api.delete('tasks', id);
+            await TasksService.delete(id);
             fetchData();
         }
     };

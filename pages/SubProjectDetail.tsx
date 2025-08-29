@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import api from '../services/api';
 import { SubProject, Task, Manager, SubProjectStatusType, Project, Product, Service } from '../types';
+import { SubProjectsService, ManagersService, ProjectsService, ProductsService, ServicesService, TasksService, AuthService, FunnelStagesService } from '../src/services/apiService';
+import { HttpClient } from '../src/services/httpClient';
+import { API_CONFIG } from '../src/config/api';
 import { PencilIcon, TrashIcon, PlusIcon, BanknotesIcon, PaperAirplaneIcon, PaperClipIcon, XMarkIcon, DocumentArrowDownIcon, ChartBarIcon } from '../components/Icons';
 
 const baseInputClasses = "w-full px-3 py-2 text-sm rounded-md focus:outline-none glass-input";
@@ -258,7 +260,7 @@ const SubProjectDetail: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [managers, setManagers] = useState<Manager[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
-    const [statuses, setStatuses] = useState<SubProjectStatusType[]>([]);
+    const [allFunnelStages, setAllFunnelStages] = useState<any[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [modalState, setModalState] = useState<ModalState>({ type: null, item: null });
@@ -271,22 +273,24 @@ const SubProjectDetail: React.FC = () => {
         if (!subprojectId) return;
         setLoading(true);
         try {
-            const [subprojectData, managersData, projectsData, statusesData, productsData, servicesData, currentUserData] = await Promise.all([
-                api.getById<SubProject>('subprojects', subprojectId),
-                api.getAll<Manager>('managers'),
-                api.getAll<Project>('projects'),
-                api.getAll<SubProjectStatusType>('subProjectStatuses'),
-                api.getAll<Product>('products'),
-                api.getAll<Service>('services'),
-                api.getCurrentUser(),
+            const [subprojectData, managersData, projectsData, stagesResp, productsData, servicesData] = await Promise.all([
+                SubProjectsService.getById(subprojectId),
+                ManagersService.getAll(),
+                ProjectsService.getAll(),
+                FunnelStagesService.getAll(),
+                ProductsService.getAll(),
+                ServicesService.getAll(),
             ]);
-            setSubproject(subprojectData);
-            setManagers(managersData);
-            setProjects(projectsData);
-            setStatuses(statusesData);
-            setProducts(productsData);
-            setServices(servicesData);
-            setCurrentUser(currentUserData);
+            setSubproject(subprojectData as any);
+            setManagers((managersData as any).data);
+            setProjects((projectsData as any).data);
+            setAllFunnelStages(((stagesResp as any).data || []) as any);
+            setProducts((productsData as any).data);
+            setServices((servicesData as any).data);
+            try {
+                const me = await AuthService.getCurrentUser();
+                setCurrentUser(me as any);
+            } catch {}
         } catch (error) {
             console.error("Failed to fetch subproject details", error);
         } finally {
@@ -303,12 +307,21 @@ const SubProjectDetail: React.FC = () => {
             setFormData({
                 name: subproject.name || '',
                 description: subproject.description || '',
-                cost: subproject.cost || 0,
+                cost: Number(subproject.cost || 0),
                 status: subproject.status || '',
                 project_id: subproject.project_id?.toString() || '',
+                responsible_manager_id: (subproject as any).responsible_manager_id?.toString() || '',
             });
         }
     }, [subproject]);
+
+    const availableStages = useMemo(() => {
+        const selectedProject = projects.find(p => p.project_id.toString() === (formData?.project_id || ''));
+        if (!selectedProject) return [] as any[];
+        return allFunnelStages
+            .filter((s: any) => s.funnel_id === selectedProject.funnel_id)
+            .sort((a: any, b: any) => a.order - b.order);
+    }, [projects, formData?.project_id, allFunnelStages]);
     
     const handleSave = async () => {
         if (!subproject || !formData) return;
@@ -318,8 +331,9 @@ const SubProjectDetail: React.FC = () => {
                 ...formData,
                 project_id: parseInt(formData.project_id),
                 cost: Number(formData.cost) || 0,
+                responsible_manager_id: formData.responsible_manager_id ? parseInt(formData.responsible_manager_id) : null,
             };
-            await api.update('subprojects', subproject.subproject_id, dataToSave);
+            await SubProjectsService.update(subproject.subproject_id, dataToSave as any);
             await fetchSubProjectAndDeps();
         } catch (error) {
             console.error("Failed to save subproject", error);
@@ -334,7 +348,7 @@ const SubProjectDetail: React.FC = () => {
         if (window.confirm('Ви впевнені, що хочете видалити цей підпроект? Ця дія незворотна.')) {
             setIsSubmitting(true);
             try {
-                await api.delete('subprojects', subproject.subproject_id);
+                await SubProjectsService.delete(subproject.subproject_id);
                 alert('Підпроект успішно видалено.');
                 navigate('/subprojects');
             } catch (error) {
@@ -368,9 +382,9 @@ const SubProjectDetail: React.FC = () => {
                     subproject_id: subproject.subproject_id 
                 };
                 if (modalState.item) {
-                    await api.update(entity, modalState.item.task_id, data);
+                    await TasksService.update(modalState.item.task_id, data as any);
                 } else {
-                    await api.create(entity, itemToSave);
+                    await TasksService.create(itemToSave as any);
                 }
                 break;
             case 'subproject_product':
@@ -416,14 +430,15 @@ const SubProjectDetail: React.FC = () => {
             created_at: new Date().toISOString(),
             file: fileData,
         };
-        await api.create('subproject_comments', newComment);
+        // Assuming comments are part of a subproject comments endpoint similar to projects
+        await HttpClient.post(`${API_CONFIG.BASE_URL}/api/comments/subprojects/${subprojectId}`, newComment);
         fetchSubProjectAndDeps();
     };
 
     const totalPlannedCosts = useMemo(() => {
         if (!subproject) return 0;
-        const productsTotal = subproject.subproject_products?.reduce((sum, p) => sum + (p.product?.price || 0) * p.quantity, 0) || 0;
-        const servicesTotal = subproject.subproject_services?.reduce((sum, s) => sum + (s.service?.price || 0), 0) || 0;
+        const productsTotal = subproject.subproject_products?.reduce((sum, p) => sum + Number(p.product?.price || 0) * p.quantity, 0) || 0;
+        const servicesTotal = subproject.subproject_services?.reduce((sum, s) => sum + Number(s.service?.price || 0), 0) || 0;
         return productsTotal + servicesTotal;
     }, [subproject]);
 
@@ -432,7 +447,14 @@ const SubProjectDetail: React.FC = () => {
     }
 
     if (!subproject) {
-        return <div className="text-center py-10 text-[var(--text-primary)]">Підпроект не знайдено.</div>;
+        return (
+            <div className="glass-pane rounded-xl p-6">
+                <div className="text-center py-10 text-[var(--text-primary)]">Підпроект не знайдено.</div>
+                <div className="mt-6 text-center">
+                    <Link to="/subprojects" className="px-4 py-2 bg-white/10 text-[var(--text-primary)] rounded-md hover:bg-white/20">Повернутися до списку підпроектів</Link>
+                </div>
+            </div>
+        );
     }
     
     const getTabClassName = (tabName: string) => {
@@ -508,20 +530,25 @@ const SubProjectDetail: React.FC = () => {
                                     <input type="number" id="cost" name="cost" value={formData.cost} onChange={handleFormChange} className={`${baseInputClasses} mt-1`} />
                                 </div>
                                 <div>
-                                    <label htmlFor="status" className="block text-sm font-medium text-[var(--text-secondary)]">Статус</label>
+                                    <label htmlFor="status" className="block text-sm font-medium text-[var(--text-secondary)]">Статус (етап воронки проєкту)</label>
                                     <select id="status" name="status" value={formData.status} onChange={handleFormChange} className={`${baseInputClasses} mt-1`}>
-                                        {statuses.map(s => <option key={s.sub_project_status_id} value={s.name}>{s.name}</option>)}
+                                        {availableStages.map((s: any) => <option key={s.funnel_stage_id} value={s.name}>{s.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
                                     <label htmlFor="project_id" className="block text-sm font-medium text-[var(--text-secondary)]">Головний проект</label>
-                                    <select id="project_id" name="project_id" value={formData.project_id} onChange={handleFormChange} className={`${baseInputClasses} mt-1`}>
+                                    <select id="project_id" name="project_id" value={formData.project_id} disabled className={`${baseInputClasses} mt-1`}>
                                         {projects.map(p => <option key={p.project_id} value={p.project_id}>{p.name}</option>)}
                                     </select>
                                 </div>
-                                 <div>
-                                    <p className="block text-sm font-medium text-[var(--text-secondary)]">Відповідальний менеджер</p>
-                                    <p className="mt-2 text-[var(--text-primary)]">{subproject.project?.main_responsible_manager?.first_name} {subproject.project?.main_responsible_manager?.last_name}</p>
+                                <div>
+                                    <label htmlFor="responsible_manager_id" className="block text-sm font-medium text-[var(--text-secondary)]">Відповідальний менеджер</label>
+                                    <select id="responsible_manager_id" name="responsible_manager_id" value={formData.responsible_manager_id} onChange={handleFormChange} className={`${baseInputClasses} mt-1`}>
+                                        <option value="">— Не призначено —</option>
+                                        {managers.map(m => (
+                                            <option key={m.manager_id} value={m.manager_id}>{m.first_name} {m.last_name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -570,7 +597,7 @@ const SubProjectDetail: React.FC = () => {
             {activeTab === 'finance' && (
                 <div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <InfoCard title="Бюджет підпроекту" value={`${subproject.cost.toFixed(2)} грн`} icon={BanknotesIcon} />
+                        <InfoCard title="Бюджет підпроекту" value={`${Number(subproject.cost).toFixed(2)} грн`} icon={BanknotesIcon} />
                         <InfoCard title="Витрати (товари/послуги)" value={`${totalPlannedCosts.toFixed(2)} грн`} icon={ChartBarIcon} />
                     </div>
                     <div className="glass-pane rounded-xl p-6">

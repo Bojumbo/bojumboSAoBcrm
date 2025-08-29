@@ -81,7 +81,6 @@ export interface SubProjectStatusType {
     name: string;
 }
 
-
 export interface Sale {
   sale_id: number;
   counterparty_id: number;
@@ -117,74 +116,67 @@ export interface ProjectComment {
   project_id: number;
   manager_id: number;
   content: string;
-  created_at: string; // ISO string
+  file_name?: string;
+  file_type?: string;
+  file_url?: string;
   manager?: Manager;
-  file?: {
-    name: string;
-    type: string; // MIME type
-    url: string;  // data URL
-  } | null;
-}
-
-export interface Project {
-  project_id: number;
-  name: string;
-  description?: string;
-  main_responsible_manager_id: number | null;
-  secondary_responsible_manager_ids?: number[];
-  counterparty_id: number | null;
-  funnel_id?: number | null;
-  funnel_stage_id?: number | null;
-  forecast_amount: number;
-  main_responsible_manager?: Manager;
-  secondary_responsible_managers?: Manager[];
-  counterparty?: Counterparty;
-  subprojects?: SubProject[];
-  tasks?: Task[];
-  sales?: Sale[];
-  project_products?: ProjectProduct[];
-  project_services?: ProjectService[];
-  comments?: ProjectComment[];
-  funnel?: Funnel;
-  funnel_stage?: FunnelStage;
 }
 
 export interface SubProjectComment {
   comment_id: number;
-  subproject_id: number;
+  sub_project_id: number;
   manager_id: number;
   content: string;
-  created_at: string; // ISO string
+  file_name?: string;
+  file_type?: string;
+  file_url?: string;
   manager?: Manager;
-  file?: {
-    name: string;
-    type: string; // MIME type
-    url: string;  // data URL
-  } | null;
 }
 
 export interface SubProjectProduct {
-  subproject_product_id: number;
-  subproject_id: number;
+  sub_project_product_id: number;
+  sub_project_id: number;
   product_id: number;
   quantity: number;
   product?: Product;
 }
 
 export interface SubProjectService {
-  subproject_service_id: number;
-  subproject_id: number;
+  sub_project_service_id: number;
+  sub_project_id: number;
   service_id: number;
   service?: Service;
 }
 
+export interface Project {
+  project_id: number;
+  name: string;
+  description?: string;
+  main_responsible_manager_id?: number;
+  counterparty_id?: number;
+  funnel_id?: number;
+  funnel_stage_id?: number;
+  forecast_amount: number;
+  main_responsible_manager?: Manager;
+  secondary_responsible_managers?: Manager[];
+  counterparty?: Counterparty;
+  funnel?: Funnel;
+  funnel_stage?: FunnelStage;
+  subprojects?: SubProject[];
+  tasks?: Task[];
+  sales?: Sale[];
+  project_products?: ProjectProduct[];
+  project_services?: ProjectService[];
+  comments?: ProjectComment[];
+}
+
 export interface SubProject {
-  subproject_id: number;
+  sub_project_id: number;
   name: string;
   description?: string;
   project_id: number;
   status?: string;
-  cost: number;
+  cost?: number;
   project?: Project;
   tasks?: Task[];
   comments?: SubProjectComment[];
@@ -195,14 +187,105 @@ export interface SubProject {
 export interface Task {
   task_id: number;
   title: string;
-  description: string;
-  responsible_manager_id: number | null;
-  creator_manager_id: number | null;
-  project_id: number | null;
-  subproject_id: number | null;
-  due_date: string | null;
+  description?: string;
+  status: string;
+  priority: string;
+  responsible_manager_id: number;
+  creator_manager_id: number;
+  project_id?: number;
+  sub_project_id?: number;
+  due_date?: string;
   responsible_manager?: Manager;
   creator_manager?: Manager;
   project?: Project;
   subproject?: SubProject;
+}
+
+// API Request/Response Types
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  user: Omit<Manager, 'supervisor_ids'>;
+  token: string;
+}
+
+export interface CreateProjectRequest {
+  name: string;
+  description?: string;
+  main_responsible_manager_id?: number;
+  counterparty_id?: number;
+  funnel_id?: number;
+  funnel_stage_id?: number;
+  forecast_amount: number;
+  secondary_responsible_manager_ids?: number[];
+}
+
+export interface UpdateProjectRequest {
+  name?: string;
+  description?: string;
+  main_responsible_manager_id?: number;
+  counterparty_id?: number;
+  funnel_id?: number;
+  funnel_stage_id?: number;
+  forecast_amount?: number;
+  secondary_responsible_manager_ids?: number[];
+}
+
+export interface CreateSaleRequest {
+  counterparty_id: number;
+  responsible_manager_id: number;
+  sale_date: string;
+  status: string;
+  deferred_payment_date?: string;
+  project_id?: number;
+  products?: { product_id: number; quantity: number }[];
+  services?: { service_id: number }[];
+}
+
+export interface UpdateSaleRequest {
+  counterparty_id?: number;
+  responsible_manager_id?: number;
+  sale_date?: string;
+  status?: string;
+  deferred_payment_date?: string;
+  project_id?: number;
+  products?: { product_id: number; quantity: number }[];
+  services?: { service_id: number }[];
+}
+
+// File Upload Types
+export interface FileUploadResponse {
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+}
+
+// API Response Types
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+}
+
+// Pagination Types
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }

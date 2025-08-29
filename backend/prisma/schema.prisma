@@ -1,0 +1,404 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Manager {
+  manager_id Int @id @default(autoincrement())
+  first_name String
+  last_name String
+  email String @unique
+  phone_number String
+  role ManagerRole
+  password_hash String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Self-referencing many-to-many for supervisors
+  supervisors Manager[] @relation("ManagerSupervisors")
+  subordinates Manager[] @relation("ManagerSupervisors")
+
+  // One-to-many relationships
+  counterparties Counterparty[]
+  sales Sale[]
+  projects_as_main Project[] @relation("ProjectMainManager")
+  projects_as_secondary ProjectManager[]
+  tasks_as_responsible Task[] @relation("TaskResponsibleManager")
+  tasks_as_creator Task[] @relation("TaskCreatorManager")
+  project_comments ProjectComment[]
+  subproject_comments SubProjectComment[]
+
+  @@map("managers")
+}
+
+model Counterparty {
+  counterparty_id Int @id @default(autoincrement())
+  name String
+  counterparty_type CounterpartyType
+  responsible_manager_id Int?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relationships
+  responsible_manager Manager? @relation(fields: [responsible_manager_id], references: [manager_id])
+  sales Sale[]
+  projects Project[]
+
+  @@map("counterparties")
+}
+
+model Unit {
+  unit_id Int @id @default(autoincrement())
+  name String
+  created_at DateTime @default(now())
+
+  // Relationships
+  products Product[]
+
+  @@map("units")
+}
+
+model Warehouse {
+  warehouse_id Int @id @default(autoincrement())
+  name String
+  location String
+  created_at DateTime @default(now())
+
+  // Relationships
+  product_stocks ProductStock[]
+
+  @@map("warehouses")
+}
+
+model Product {
+  product_id Int @id @default(autoincrement())
+  name String
+  description String?
+  price Decimal @db.Decimal(10, 2)
+  unit_id Int?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relationships
+  unit Unit? @relation(fields: [unit_id], references: [unit_id])
+  stocks ProductStock[]
+  sales SaleProduct[]
+  project_products ProjectProduct[]
+  subproject_products SubProjectProduct[]
+
+  @@map("products")
+}
+
+model ProductStock {
+  product_stock_id Int @id @default(autoincrement())
+  product_id Int
+  warehouse_id Int
+  quantity Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relationships
+  product Product @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouse_id], references: [warehouse_id], onDelete: Cascade)
+
+  @@unique([product_id, warehouse_id])
+  @@map("product_stocks")
+}
+
+model Service {
+  service_id Int @id @default(autoincrement())
+  name String
+  description String?
+  price Decimal @db.Decimal(10, 2)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relationships
+  sales SaleService[]
+  project_services ProjectService[]
+  subproject_services SubProjectService[]
+
+  @@map("services")
+}
+
+model SaleStatusType {
+  sale_status_id Int @id @default(autoincrement())
+  name String @unique
+  created_at DateTime @default(now())
+
+  // Relationships
+  sales Sale[]
+
+  @@map("sale_status_types")
+}
+
+model Sale {
+  sale_id Int @id @default(autoincrement())
+  counterparty_id Int
+  responsible_manager_id Int
+  sale_date DateTime
+  status String
+  deferred_payment_date DateTime?
+  project_id Int?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relationships
+  counterparty Counterparty @relation(fields: [counterparty_id], references: [counterparty_id])
+  responsible_manager Manager @relation(fields: [responsible_manager_id], references: [manager_id])
+  project Project? @relation(fields: [project_id], references: [project_id])
+  products SaleProduct[]
+  services SaleService[]
+  sale_status_type SaleStatusType? @relation(fields: [status], references: [name])
+
+  @@map("sales")
+}
+
+model SaleProduct {
+  sale_id Int
+  product_id Int
+  quantity Int
+  created_at DateTime @default(now())
+
+  // Relationships
+  sale Sale @relation(fields: [sale_id], references: [sale_id], onDelete: Cascade)
+  product Product @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+
+  @@id([sale_id, product_id])
+  @@map("sale_products")
+}
+
+model SaleService {
+  sale_id Int
+  service_id Int
+  created_at DateTime @default(now())
+
+  // Relationships
+  sale Sale @relation(fields: [sale_id], references: [sale_id], onDelete: Cascade)
+  service Service @relation(fields: [service_id], references: [service_id], onDelete: Cascade)
+
+  @@id([sale_id, service_id])
+  @@map("sale_services")
+}
+
+model Funnel {
+  funnel_id Int @id @default(autoincrement())
+  name String
+  created_at DateTime @default(now())
+
+  // Relationships
+  stages FunnelStage[]
+  projects Project[]
+
+  @@map("funnels")
+}
+
+model FunnelStage {
+  funnel_stage_id Int @id @default(autoincrement())
+  name String
+  funnel_id Int
+  order Int
+  created_at DateTime @default(now())
+
+  // Relationships
+  funnel Funnel @relation(fields: [funnel_id], references: [funnel_id], onDelete: Cascade)
+  projects Project[]
+
+  @@map("funnel_stages")
+}
+
+model SubProjectStatusType {
+  sub_project_status_id Int @id @default(autoincrement())
+  name String
+  created_at DateTime @default(now())
+
+  @@map("sub_project_status_types")
+}
+
+model Project {
+  project_id Int @id @default(autoincrement())
+  name String
+  description String?
+  main_responsible_manager_id Int?
+  counterparty_id Int?
+  funnel_id Int?
+  funnel_stage_id Int?
+  forecast_amount Decimal @db.Decimal(10, 2)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relationships
+  main_responsible_manager Manager? @relation("ProjectMainManager", fields: [main_responsible_manager_id], references: [manager_id])
+  secondary_responsible_managers ProjectManager[]
+  counterparty Counterparty? @relation(fields: [counterparty_id], references: [counterparty_id])
+  funnel Funnel? @relation(fields: [funnel_id], references: [funnel_id])
+  funnel_stage FunnelStage? @relation(fields: [funnel_stage_id], references: [funnel_stage_id])
+  subprojects SubProject[]
+  tasks Task[]
+  sales Sale[]
+  products ProjectProduct[]
+  services ProjectService[]
+  comments ProjectComment[]
+
+  @@map("projects")
+}
+
+model ProjectManager {
+  project_id Int
+  manager_id Int
+  created_at DateTime @default(now())
+
+  // Relationships
+  project Project @relation(fields: [project_id], references: [project_id], onDelete: Cascade)
+  manager Manager @relation(fields: [manager_id], references: [manager_id], onDelete: Cascade)
+
+  @@id([project_id, manager_id])
+  @@map("project_managers")
+}
+
+model SubProject {
+  subproject_id Int @id @default(autoincrement())
+  name String
+  description String?
+  project_id Int
+  status String?
+  cost Decimal @db.Decimal(10, 2)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relationships
+  project Project @relation(fields: [project_id], references: [project_id], onDelete: Cascade)
+  tasks Task[]
+  comments SubProjectComment[]
+  products SubProjectProduct[]
+  services SubProjectService[]
+
+  @@map("subprojects")
+}
+
+model Task {
+  task_id Int @id @default(autoincrement())
+  title String
+  description String?
+  responsible_manager_id Int?
+  creator_manager_id Int?
+  project_id Int?
+  subproject_id Int?
+  due_date DateTime?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relationships
+  responsible_manager Manager? @relation("TaskResponsibleManager", fields: [responsible_manager_id], references: [manager_id])
+  creator_manager Manager? @relation("TaskCreatorManager", fields: [creator_manager_id], references: [manager_id])
+  project Project? @relation(fields: [project_id], references: [project_id], onDelete: Cascade)
+  subproject SubProject? @relation(fields: [subproject_id], references: [subproject_id], onDelete: Cascade)
+
+  @@map("tasks")
+}
+
+model ProjectProduct {
+  project_product_id Int @id @default(autoincrement())
+  project_id Int
+  product_id Int
+  quantity Int
+  created_at DateTime @default(now())
+
+  // Relationships
+  project Project @relation(fields: [project_id], references: [project_id], onDelete: Cascade)
+  product Product @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+
+  @@map("project_products")
+}
+
+model ProjectService {
+  project_service_id Int @id @default(autoincrement())
+  project_id Int
+  service_id Int
+  created_at DateTime @default(now())
+
+  // Relationships
+  project Project @relation(fields: [project_id], references: [project_id], onDelete: Cascade)
+  service Service @relation(fields: [service_id], references: [service_id], onDelete: Cascade)
+
+  @@map("project_services")
+}
+
+model SubProjectProduct {
+  subproject_product_id Int @id @default(autoincrement())
+  subproject_id Int
+  product_id Int
+  quantity Int
+  created_at DateTime @default(now())
+
+  // Relationships
+  subproject SubProject @relation(fields: [subproject_id], references: [subproject_id], onDelete: Cascade)
+  product Product @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+
+  @@map("subproject_products")
+}
+
+model SubProjectService {
+  subproject_service_id Int @id @default(autoincrement())
+  subproject_id Int
+  service_id Int
+  created_at DateTime @default(now())
+
+  // Relationships
+  subproject SubProject @relation(fields: [subproject_id], references: [subproject_id], onDelete: Cascade)
+  service Service @relation(fields: [service_id], references: [service_id], onDelete: Cascade)
+
+  @@map("subproject_services")
+}
+
+model ProjectComment {
+  comment_id Int @id @default(autoincrement())
+  project_id Int
+  manager_id Int
+  content String
+  file_name String?
+  file_type String?
+  file_url String?
+  created_at DateTime @default(now())
+
+  // Relationships
+  project Project @relation(fields: [project_id], references: [project_id], onDelete: Cascade)
+  manager Manager @relation(fields: [manager_id], references: [manager_id], onDelete: Cascade)
+
+  @@map("project_comments")
+}
+
+model SubProjectComment {
+  comment_id Int @id @default(autoincrement())
+  subproject_id Int
+  manager_id Int
+  content String
+  file_name String?
+  file_type String?
+  file_url String?
+  created_at DateTime @default(now())
+
+  // Relationships
+  subproject SubProject @relation(fields: [subproject_id], references: [subproject_id], onDelete: Cascade)
+  manager Manager @relation(fields: [manager_id], references: [manager_id], onDelete: Cascade)
+
+  @@map("subproject_comments")
+}
+
+enum ManagerRole {
+  admin
+  head
+  manager
+}
+
+enum CounterpartyType {
+  INDIVIDUAL
+  LEGAL_ENTITY
+}

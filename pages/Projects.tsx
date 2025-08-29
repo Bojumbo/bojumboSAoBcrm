@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
+import { ProjectsService, ManagersService, CounterpartiesService, FunnelsService, FunnelStagesService } from '../src/services/apiService';
 import { Project, Manager, Counterparty, Funnel, FunnelStage } from '../types';
 import PageHeader from '../components/PageHeader';
 import { TrashIcon, FunnelIcon, BanknotesIcon } from '../components/Icons';
+import { usePaginatedApi } from '../src/hooks/useApi';
+import { ApiErrorDisplay } from '../src/components/ApiErrorDisplay';
 
 const ProjectForm: React.FC<{
     project?: Project | null;
@@ -81,9 +83,9 @@ const ProjectForm: React.FC<{
             forecast_amount: Number(formData.forecast_amount) || 0,
         };
         if (project) {
-            await api.update('projects', project.project_id, dataToSave);
+            await ProjectsService.update(project.project_id, dataToSave);
         } else {
-            await api.create('projects', dataToSave);
+            await ProjectsService.create(dataToSave);
         }
         onSave();
     };
@@ -192,35 +194,38 @@ const Projects: React.FC = () => {
         responsible_manager_id: '',
     });
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
+    const loadData = useCallback(async () => {
         try {
+            setLoading(true);
             const [pData, mData, cData, fData, fsData] = await Promise.all([
-                api.getAll<Project>('projects'),
-                api.getAll<Manager>('managers'),
-                api.getAll<Counterparty>('counterparties'),
-                api.getAll<Funnel>('funnels'),
-                api.getAll<FunnelStage>('funnelStages'),
+                ProjectsService.getAll(),
+                ManagersService.getAll(),
+                CounterpartiesService.getAll(),
+                FunnelsService.getAll(),
+                FunnelStagesService.getAll(),
             ]);
-            setProjects(pData);
-            setManagers(mData);
-            setCounterparties(cData);
-            setFunnels(fData);
-            setFunnelStages(fsData);
-
-            if (fData.length > 0 && !selectedFunnelId) {
-                setSelectedFunnelId(fData[0].funnel_id.toString());
-            }
+            setProjects(pData.data);
+            setManagers(mData.data);
+            setCounterparties(cData.data);
+            setFunnels(fData.data);
+            setFunnelStages(fsData.data);
         } catch (error) {
-            console.error("Failed to fetch projects", error);
+            console.error('Failed to load data:', error);
         } finally {
             setLoading(false);
         }
-    }, [selectedFunnelId]);
+    }, []);
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        loadData();
+    }, [loadData]);
+
+    // Set default selected funnel to the first one when data loads
+    useEffect(() => {
+        if (!selectedFunnelId && funnels.length > 0) {
+            setSelectedFunnelId(funnels[0].funnel_id.toString());
+        }
+    }, [funnels, selectedFunnelId]);
 
     const activeStages = useMemo(() => {
         return funnelStages.filter(s => s.funnel_id.toString() === selectedFunnelId).sort((a,b) => a.order - b.order);
@@ -228,7 +233,7 @@ const Projects: React.FC = () => {
 
     const filteredProjects = useMemo(() => {
         return projects.filter(p => {
-            const funnelMatch = p.funnel_id?.toString() === selectedFunnelId;
+            const funnelMatch = selectedFunnelId ? (p.funnel_id?.toString() === selectedFunnelId) : true;
             const counterpartyMatch = filters.counterparty_id ? p.counterparty_id?.toString() === filters.counterparty_id : true;
             const managerMatch = filters.responsible_manager_id ? p.main_responsible_manager_id?.toString() === filters.responsible_manager_id : true;
             return funnelMatch && counterpartyMatch && managerMatch;
@@ -250,7 +255,7 @@ const Projects: React.FC = () => {
     
     const handleSave = () => {
         setIsModalOpen(false);
-        fetchData();
+        loadData();
     };
     
     const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -273,7 +278,7 @@ const Projects: React.FC = () => {
         setProjects(updatedProjects);
 
         try {
-            await api.update('projects', projectId, { funnel_stage_id: stageId });
+            await ProjectsService.update(projectId, { funnel_stage_id: stageId });
         } catch (error) {
             console.error("Failed to update project stage", error);
             // Revert on failure

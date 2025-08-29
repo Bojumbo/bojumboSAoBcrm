@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import api from '../services/api';
+import { CounterpartiesService, ManagersService } from '../src/services/apiService';
+import { PaginatedResponse } from '../src/services/httpClient';
 import { Counterparty, Manager, CounterpartyType } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PencilIcon, TrashIcon, FunnelIcon } from '../components/Icons';
@@ -23,9 +24,9 @@ const CounterpartyForm: React.FC<{ counterparty?: Counterparty | null, onSave: (
             responsible_manager_id: formData.responsible_manager_id ? parseInt(formData.responsible_manager_id) : null,
         };
         if (counterparty) {
-            await api.update('counterparties', counterparty.counterparty_id, dataToSave);
+            await CounterpartiesService.update(counterparty.counterparty_id, dataToSave as any);
         } else {
-            await api.create('counterparties', dataToSave);
+            await CounterpartiesService.create(dataToSave as any);
         }
         onSave();
     };
@@ -69,15 +70,15 @@ const Counterparties: React.FC = () => {
         setLoading(true);
         try {
             const [cData, mData] = await Promise.all([
-                api.getAll<Counterparty>('counterparties'),
-                api.getAll<Manager>('managers')
+                CounterpartiesService.getAll(),
+                ManagersService.getAll()
             ]);
-            const counterpartiesWithManagers = cData.map(c => ({
+            const counterpartiesWithManagers = (cData as any).data.map((c: any) => ({
                 ...c,
-                responsible_manager: mData.find(m => m.manager_id === c.responsible_manager_id)
+                responsible_manager: (mData as any).data.find((m: any) => m.manager_id === c.responsible_manager_id)
             }));
             setCounterparties(counterpartiesWithManagers);
-            setManagers(mData);
+            setManagers((mData as any).data);
         } catch (error) {
             console.error("Failed to fetch data", error);
         } finally {
@@ -118,7 +119,7 @@ const Counterparties: React.FC = () => {
 
     const handleDelete = async (id: number) => {
         if (window.confirm('Ви впевнені, що хочете видалити цього контрагента?')) {
-            await api.delete('counterparties', id);
+            await CounterpartiesService.delete(id);
             fetchData();
         }
     };

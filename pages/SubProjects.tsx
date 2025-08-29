@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
+import { SubProjectsService, ProjectsService, ManagersService, FunnelStagesService } from '../src/services/apiService';
 import { SubProject, Manager, Project, SubProjectStatusType } from '../types';
 import PageHeader from '../components/PageHeader';
 import { FunnelIcon, BanknotesIcon } from '../components/Icons';
@@ -32,9 +32,9 @@ const SubProjectForm: React.FC<{
             project_id: parseInt(formData.project_id),
         };
         if (subproject) {
-            await api.update('subprojects', subproject.subproject_id, dataToSave);
+            await SubProjectsService.update(subproject.subproject_id, dataToSave as any);
         } else {
-            await api.create('subprojects', dataToSave);
+            await SubProjectsService.create(dataToSave as any);
         }
         onSave();
     };
@@ -88,7 +88,7 @@ const SubProjectCard: React.FC<{ subproject: SubProject }> = ({ subproject }) =>
                     </p>
                     <div className="flex items-center text-sm font-bold text-green-400">
                         <BanknotesIcon className="h-4 w-4 mr-1"/>
-                        <span>{(subproject.cost || 0).toLocaleString('uk-UA')}</span>
+                        <span>{Number(subproject.cost || 0).toLocaleString('uk-UA')}</span>
                     </div>
                 </div>
             </Link>
@@ -112,16 +112,21 @@ const SubProjects: React.FC = () => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [spData, pData, mData, sData] = await Promise.all([
-                api.getAll<SubProject>('subprojects'),
-                api.getAll<Project>('projects'),
-                api.getAll<Manager>('managers'),
-                api.getAll<SubProjectStatusType>('subProjectStatuses'),
+            const [spData, pData, mData, stagesResp] = await Promise.all([
+                SubProjectsService.getAll(),
+                ProjectsService.getAll(),
+                ManagersService.getAll(),
+                FunnelStagesService.getAll(),
             ]);
-            setSubprojects(spData);
-            setProjects(pData);
-            setManagers(mData);
-            setStatuses(sData);
+            const spList = ((spData as any).data || []) as SubProject[];
+            setSubprojects(spList);
+            setProjects((pData as any).data);
+            setManagers((mData as any).data);
+            // Build statuses from all funnel stages so columns exist even without subprojects
+            const stages = (((stagesResp as any)?.data) || []) as Array<{ funnel_stage_id: number; name: string }>;
+            const uniqueStageNames = Array.from(new Set(stages.map(s => s.name)));
+            const allStatuses = uniqueStageNames.map((name, idx) => ({ sub_project_status_id: stages.find(s => s.name === name)?.funnel_stage_id || (idx + 1), name } as any));
+            setStatuses(allStatuses);
         } catch (error) {
             console.error("Failed to fetch subprojects data", error);
         } finally {
@@ -178,7 +183,7 @@ const SubProjects: React.FC = () => {
         setSubprojects(updatedSubprojects);
 
         try {
-            await api.update('subprojects', subprojectId, { status: statusName });
+            await SubProjectsService.update(subprojectId, { status: statusName } as any);
         } catch (error) {
             console.error("Failed to update subproject status", error);
             setSubprojects(subprojects);
@@ -221,7 +226,7 @@ const SubProjects: React.FC = () => {
                 <div className="flex space-x-4 h-full">
                     {statuses.map(status => {
                         const subprojectsInStatus = filteredSubprojects.filter(sp => sp.status === status.name);
-                        const statusTotalAmount = subprojectsInStatus.reduce((sum, sp) => sum + sp.cost, 0);
+                        const statusTotalAmount = subprojectsInStatus.reduce((sum, sp) => sum + Number(sp.cost), 0);
 
                         return (
                             <div

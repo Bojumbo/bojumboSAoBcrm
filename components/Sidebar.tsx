@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { HomeIcon, BuildingOfficeIcon, CubeIcon, WrenchScrewdriverIcon, ShoppingCartIcon, BriefcaseIcon, ChartBarIcon, Cog6ToothIcon, ClipboardDocumentListIcon, ViewColumnsIcon } from './Icons';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../src/contexts/AuthContext';
 import ThemeToggle from './ThemeToggle';
 
 const navigationItems = [
@@ -17,15 +17,18 @@ const navigationItems = [
 ];
 
 const Sidebar: React.FC = () => {
-  const { currentUser, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const linkClasses = 'flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-300';
-  const inactiveClasses = 'nav-link-inactive';
-  const activeClasses = 'nav-link-active';
   
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Force navigation even if logout fails
+      navigate('/login');
+    }
   };
 
   const getRoleName = (role: string) => {
@@ -39,7 +42,7 @@ const Sidebar: React.FC = () => {
 
   const visibleNavigation = navigationItems.filter(item => {
     if (item.adminOnly) {
-      return currentUser?.role === 'admin';
+      return user?.role === 'admin';
     }
     return true;
   });
@@ -58,7 +61,11 @@ const Sidebar: React.FC = () => {
             key={item.name}
             to={item.href}
             end={item.href === '/'}
-            className={({ isActive }) => `${linkClasses} ${isActive ? activeClasses : inactiveClasses}`}
+            className={({ isActive }) => 
+              `flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-300 ${
+                isActive ? 'nav-link-active' : 'nav-link-inactive'
+              }`
+            }
           >
             <item.icon className="h-5 w-5 mr-3" />
             {item.name}
@@ -68,10 +75,10 @@ const Sidebar: React.FC = () => {
 
        <div className="p-4 border-t border-[var(--glass-border)]">
         <div className="flex justify-between items-center mb-4">
-            {currentUser && (
+            {user && (
                 <div className="text-left">
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">{currentUser.first_name} {currentUser.last_name}</p>
-                    <p className="text-xs text-[var(--text-secondary)]">{getRoleName(currentUser.role)}</p>
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">{user.first_name} {user.last_name}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">{getRoleName(user.role)}</p>
                 </div>
             )}
             <ThemeToggle />

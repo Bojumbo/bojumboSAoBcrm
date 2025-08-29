@@ -13,9 +13,9 @@ import SubProjectDetail from './pages/SubProjectDetail';
 import Tasks from './pages/Tasks';
 import NotFound from './pages/NotFound';
 import Settings from './pages/Settings';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider } from './src/contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute from './src/components/ProtectedRoute';
 import Login from './pages/Login';
 import AdminRoute from './components/AdminRoute';
 

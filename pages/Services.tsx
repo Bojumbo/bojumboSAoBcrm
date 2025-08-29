@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import api from '../services/api';
+import { ServicesService } from '../src/services/apiService';
 import { Service } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PencilIcon, TrashIcon, FunnelIcon } from '../components/Icons';
@@ -21,9 +21,9 @@ const ServiceForm: React.FC<{ service?: Service | null; onSave: () => void; onCa
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (service) {
-            await api.update('services', service.service_id, formData);
+            await ServicesService.update(service.service_id, formData as any);
         } else {
-            await api.create('services', formData);
+            await ServicesService.create(formData as any);
         }
         onSave();
     };
@@ -56,8 +56,8 @@ const Services: React.FC = () => {
     const fetchServices = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await api.getAll<Service>('services');
-            setServices(data);
+            const data = await ServicesService.getAll();
+            setServices((data as any).data);
         } catch (error) {
             console.error("Failed to fetch services", error);
         } finally {
@@ -87,7 +87,7 @@ const Services: React.FC = () => {
 
     const handleDelete = async (id: number) => {
         if (window.confirm('Ви впевнені, що хочете видалити цю послугу?')) {
-            await api.delete('services', id);
+            await ServicesService.delete(id);
             fetchServices();
         }
     };
@@ -132,7 +132,7 @@ const Services: React.FC = () => {
                                 <tr key={s.service_id} className="hover:bg-[var(--table-row-hover-bg)] transition-colors duration-200">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--text-primary)]">{s.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)] max-w-sm truncate">{s.description}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{s.price.toFixed(2)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{Number(s.price).toFixed(2)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                         <button onClick={() => handleEdit(s)} className="text-indigo-400 hover:text-indigo-300"><PencilIcon className="h-5 w-5"/></button>
                                         <button onClick={() => handleDelete(s.service_id)} className="text-red-400 hover:text-red-300"><TrashIcon className="h-5 w-5"/></button>

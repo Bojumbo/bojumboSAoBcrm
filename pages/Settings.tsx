@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import api from '../services/api';
+import { ManagersService, FunnelsService, FunnelStagesService } from '../src/services/apiService';
 import { Manager, Unit, SaleStatusType, SubProjectStatusType, Warehouse, Funnel, FunnelStage } from '../types';
+import { HttpClient, PaginatedResponse } from '../src/services/httpClient';
+import { API_CONFIG } from '../src/config/api';
 import PageHeader from '../components/PageHeader';
 import { PencilIcon, TrashIcon, PlusIcon } from '../components/Icons';
 
@@ -118,8 +120,8 @@ const ManagersTabContent: React.FC = () => {
     const fetchManagers = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await api.getAll<Manager>('managers');
-            setManagers(data);
+            const data = await ManagersService.getAll();
+            setManagers((data as any).data);
         } catch (error) {
             console.error("Failed to fetch managers", error);
         } finally {
@@ -145,7 +147,7 @@ const ManagersTabContent: React.FC = () => {
 
     const handleDelete = async (id: number) => {
         if (window.confirm('Ви впевнені, що хочете видалити цього менеджера?')) {
-            await api.delete('managers', id);
+            await ManagersService.delete(id);
             fetchManagers();
         }
     };
@@ -215,9 +217,9 @@ const WarehouseForm: React.FC<{ warehouse?: Warehouse | null; onSave: () => void
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (warehouse) {
-            await api.update('warehouses', warehouse.warehouse_id, formData);
+            await HttpClient.put(`${API_CONFIG.ENDPOINTS.WAREHOUSES}/${warehouse.warehouse_id}`, formData);
         } else {
-            await api.create('warehouses', formData);
+            await HttpClient.post(API_CONFIG.ENDPOINTS.WAREHOUSES, formData);
         }
         onSave();
     };
@@ -248,8 +250,8 @@ const WarehousesTabContent: React.FC = () => {
     const fetchWarehouses = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await api.getAll<Warehouse>('warehouses');
-            setWarehouses(data);
+            const data = await HttpClient.get<PaginatedResponse<Warehouse>>(API_CONFIG.ENDPOINTS.WAREHOUSES);
+            setWarehouses(data.data);
         } catch (error) {
             console.error("Failed to fetch warehouses", error);
         } finally {
@@ -273,7 +275,7 @@ const WarehousesTabContent: React.FC = () => {
 
     const handleDelete = async (id: number) => {
         if (window.confirm('Ви впевнені, що хочете видалити цей склад?')) {
-            await api.delete('warehouses', id);
+            await HttpClient.delete(`${API_CONFIG.ENDPOINTS.WAREHOUSES}/${id}`);
             fetchWarehouses();
         }
     };
@@ -342,10 +344,12 @@ const FunnelsTabContent: React.FC = () => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [funnelsData, stagesData] = await Promise.all([
-                api.getAll<Funnel>('funnels'),
-                api.getAll<FunnelStage>('funnelStages'),
+            const [funnelsResp, stagesResp] = await Promise.all([
+                FunnelsService.getAll(),
+                FunnelStagesService.getAll(),
             ]);
+            const funnelsData = (funnelsResp as any).data;
+            const stagesData = (stagesResp as any).data;
             setFunnels(funnelsData);
             setFunnelStages(stagesData);
             if (!selectedFunnel && funnelsData.length > 0) {
@@ -377,16 +381,16 @@ const FunnelsTabContent: React.FC = () => {
         e.preventDefault();
         if (modalState.type === 'funnel') {
             if (modalState.item) {
-                await api.update('funnels', (modalState.item as Funnel).funnel_id, { name });
+                await FunnelsService.update((modalState.item as Funnel).funnel_id, { name } as any);
             } else {
-                await api.create('funnels', { name });
+                await FunnelsService.create({ name } as any);
             }
         } else if (modalState.type === 'stage' && selectedFunnel) {
              if (modalState.item) {
-                await api.update('funnelStages', (modalState.item as FunnelStage).funnel_stage_id, { name });
+                await FunnelStagesService.update((modalState.item as FunnelStage).funnel_stage_id, { name } as any);
             } else {
                 const maxOrder = Math.max(0, ...funnelStages.filter(s => s.funnel_id === selectedFunnel.funnel_id).map(s => s.order));
-                await api.create('funnelStages', { name, funnel_id: selectedFunnel.funnel_id, order: maxOrder + 1 });
+                await FunnelStagesService.create({ name, funnel_id: selectedFunnel.funnel_id, order: maxOrder + 1 } as any);
             }
         }
         handleCloseModal();
@@ -394,10 +398,13 @@ const FunnelsTabContent: React.FC = () => {
     };
 
     const handleDelete = async (type: 'funnel' | 'stage', id: number) => {
-        const entity = type === 'funnel' ? 'funnels' : 'funnelStages';
         const confirmText = type === 'funnel' ? 'воронку (разом з усіма її етапами)?' : 'етап?';
         if (window.confirm(`Ви впевнені, що хочете видалити цю ${confirmText}`)) {
-            await api.delete(entity, id);
+            if (type === 'funnel') {
+                await FunnelsService.delete(id);
+            } else {
+                await FunnelStagesService.delete(id);
+            }
             if(type === 'funnel' && selectedFunnel?.funnel_id === id) {
                 setSelectedFunnel(null);
             }
@@ -506,8 +513,11 @@ const DictionaryManager: React.FC<{
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await api.getAll<any>(entity);
-            setItems(data);
+            const endpoint = entity === 'units' ? API_CONFIG.ENDPOINTS.UNITS
+                : entity === 'saleStatuses' ? '/api/sale-status-types'
+                : '/api/subproject-status-types';
+            const data = await HttpClient.get<PaginatedResponse<any>>(endpoint);
+            setItems(data.data);
         } catch (error) {
             console.error(`Failed to fetch ${entity}`, error);
         } finally {
@@ -533,11 +543,14 @@ const DictionaryManager: React.FC<{
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        const data = { name: itemName };
+        const data = { name: itemName } as any;
+        const endpoint = entity === 'units' ? API_CONFIG.ENDPOINTS.UNITS
+            : entity === 'saleStatuses' ? '/api/sale-status-types'
+            : '/api/subproject-status-types';
         if (currentItem) {
-            await api.update(entity, currentItem[idKey], data);
+            await HttpClient.put(`${endpoint}/${(currentItem as any)[idKey]}`, data);
         } else {
-            await api.create(entity, data);
+            await HttpClient.post(endpoint, data);
         }
         handleCloseModal();
         fetchData();
@@ -545,7 +558,10 @@ const DictionaryManager: React.FC<{
 
     const handleDelete = async (id: number) => {
         if (window.confirm('Ви впевнені, що хочете видалити цей запис?')) {
-            await api.delete(entity, id);
+            const endpoint = entity === 'units' ? API_CONFIG.ENDPOINTS.UNITS
+                : entity === 'saleStatuses' ? '/api/sale-status-types'
+                : '/api/subproject-status-types';
+            await HttpClient.delete(`${endpoint}/${id}`);
             fetchData();
         }
     };
@@ -615,11 +631,115 @@ const DictionaryManager: React.FC<{
 };
 
 const DictionariesTabContent: React.FC = () => {
+    const [funnels, setFunnels] = React.useState<Funnel[]>([]);
+    const [selectedFunnelId, setSelectedFunnelId] = React.useState<string>('');
+    const [stages, setStages] = React.useState<FunnelStage[]>([]);
+    const [loading, setLoading] = React.useState<boolean>(false);
+    const [stageName, setStageName] = React.useState('');
+    const [editingStage, setEditingStage] = React.useState<FunnelStage | null>(null);
+
+    const loadData = React.useCallback(async () => {
+        setLoading(true);
+        try {
+            const [funnelsResp, stagesResp] = await Promise.all([
+                FunnelsService.getAll(),
+                FunnelStagesService.getAll(),
+            ]);
+            const f = (funnelsResp as any).data as Funnel[];
+            const s = (stagesResp as any).data as FunnelStage[];
+            setFunnels(f);
+            setStages(s);
+            if (!selectedFunnelId && f.length) setSelectedFunnelId(f[0].funnel_id.toString());
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedFunnelId]);
+
+    React.useEffect(() => { loadData(); }, [loadData]);
+
+    const filteredStages = React.useMemo(() => {
+        return stages
+            .filter(s => selectedFunnelId ? s.funnel_id.toString() === selectedFunnelId : true)
+            .sort((a, b) => a.order - b.order);
+    }, [stages, selectedFunnelId]);
+
+    const saveStage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const funnelId = parseInt(selectedFunnelId);
+        if (!funnelId) return;
+        if (editingStage) {
+            await FunnelStagesService.update(editingStage.funnel_stage_id, { name: stageName } as any);
+        } else {
+            const maxOrder = Math.max(0, ...filteredStages.map(s => s.order));
+            await FunnelStagesService.create({ name: stageName, funnel_id: funnelId, order: maxOrder + 1 } as any);
+        }
+        setStageName('');
+        setEditingStage(null);
+        await loadData();
+    };
+
+    const deleteStage = async (id: number) => {
+        if (!window.confirm('Видалити етап?')) return;
+        await FunnelStagesService.delete(id);
+        await loadData();
+    };
+
     return (
         <div className="space-y-8">
             <DictionaryManager title="Одиниці виміру" entity="units" />
             <DictionaryManager title="Статуси продажів" entity="saleStatuses" />
-            <DictionaryManager title="Статуси підпроектів" entity="subProjectStatuses" />
+
+            <div className="rounded-lg glass-pane p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Статуси підпроєктів (етапи воронок)</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <select value={selectedFunnelId} onChange={e => setSelectedFunnelId(e.target.value)} className="w-full px-3 py-2 text-sm rounded-md focus:outline-none glass-input">
+                        {funnels.map(f => (
+                            <option key={f.funnel_id} value={f.funnel_id}>{f.name}</option>
+                        ))}
+                    </select>
+                    <form onSubmit={saveStage} className="md:col-span-2 flex gap-2">
+                        <input value={stageName} onChange={e => setStageName(e.target.value)} placeholder="Назва етапу" required className="w-full px-3 py-2 text-sm rounded-md focus:outline-none glass-input" />
+                        <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                            {editingStage ? 'Оновити' : 'Додати'}
+                        </button>
+                        {editingStage && (
+                            <button type="button" onClick={() => { setEditingStage(null); setStageName(''); }} className="px-4 py-2 bg-white/10 text-[var(--text-primary)] rounded-md hover:bg-white/20">Скасувати</button>
+                        )}
+                    </form>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-[var(--table-divide-color)]">
+                        <thead className="bg-[var(--table-header-bg)]">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Етап</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Порядок</th>
+                                <th className="relative px-6 py-3"><span className="sr-only">Дії</span></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--table-divide-color)]">
+                            {loading ? (
+                                <tr><td colSpan={3} className="text-center py-4">Завантаження...</td></tr>
+                            ) : (
+                                filteredStages.map(s => (
+                                    <tr key={s.funnel_stage_id}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{s.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{s.order}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+                                            <button onClick={() => { setEditingStage(s); setStageName(s.name); }} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Редагувати</button>
+                                            <button onClick={() => deleteStage(s.funnel_stage_id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Видалити</button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                            {!loading && filteredStages.length === 0 && (
+                                <tr><td colSpan={3} className="text-center py-4 text-gray-500 dark:text-gray-400">Немає етапів у вибраній воронці.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     );
 };

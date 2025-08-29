@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import api from '../services/api';
+import { SalesService, ManagersService, CounterpartiesService, ProductsService, ServicesService, SaleStatusTypeService } from '../src/services/apiService';
 import { Sale, Manager, Counterparty, Product, Service, SaleStatusType } from '../types';
 import PageHeader from '../components/PageHeader';
 import { TrashIcon, PlusIcon, FunnelIcon } from '../components/Icons';
@@ -35,13 +35,13 @@ const SaleForm: React.FC<{
         const productsTotal = formData.products.reduce((sum, p) => {
             if (!p.product_id) return sum;
             const product = products.find(prod => prod.product_id.toString() === p.product_id);
-            return sum + (product ? product.price * p.quantity : 0);
+            return sum + (product ? Number(product.price) * p.quantity : 0);
         }, 0);
 
         const servicesTotal = formData.services.reduce((sum, s) => {
             if (!s.service_id) return sum;
             const service = services.find(serv => serv.service_id.toString() === s.service_id);
-            return sum + (service ? service.price : 0);
+            return sum + (service ? Number(service.price) : 0);
         }, 0);
 
         return productsTotal + servicesTotal;
@@ -121,7 +121,7 @@ const SaleForm: React.FC<{
                 .map(s => ({ service_id: parseInt(s.service_id) })),
         };
         
-        await api.create('sales', dataToSave);
+        await SalesService.create(dataToSave as any);
         onSave();
     };
     
@@ -202,10 +202,10 @@ const SaleForm: React.FC<{
                                 <div key={index} className="flex items-center gap-2">
                                     <select value={s.service_id} onChange={(e) => handleServiceChange(index, e.target.value)} className={`${baseInputClasses} flex-grow`} required>
                                         <option value="" disabled>Виберіть послугу</option>
-                                        {availableServices.map(serv => <option key={serv.service_id} value={serv.service_id}>{serv.name} ({serv.price.toFixed(2)} грн)</option>)}
+                                        {availableServices.map(serv => <option key={serv.service_id} value={serv.service_id}>{serv.name} ({Number(serv.price).toFixed(2)} грн)</option>)}
                                     </select>
                                      <span className="w-28 text-right text-sm font-medium text-[var(--text-primary)] pr-2">
-                                        {selectedService ? `${selectedService.price.toFixed(2)} грн` : '0.00 грн'}
+                                        {selectedService ? `${Number(selectedService.price).toFixed(2)} грн` : '0.00 грн'}
                                     </span>
                                     <button type="button" onClick={() => handleRemoveService(index)} className="p-2 text-red-400 hover:text-red-300"><TrashIcon className="h-5 w-5"/></button>
                                 </div>
@@ -258,21 +258,32 @@ const Sales: React.FC = () => {
         setLoading(true);
         try {
             const [salesData, managersData, counterpartiesData, productsData, servicesData, saleStatusesData] = await Promise.all([
-                api.getAll<Sale>('sales'),
-                api.getAll<Manager>('managers'),
-                api.getAll<Counterparty>('counterparties'),
-                api.getAll<Product>('products'),
-                api.getAll<Service>('services'),
-                api.getAll<SaleStatusType>('saleStatuses'),
+                SalesService.getAll(),
+                ManagersService.getAll(),
+                CounterpartiesService.getAll(),
+                ProductsService.getAll(),
+                ServicesService.getAll(),
+                SaleStatusTypeService.getAll(),
             ]);
-            setSales(salesData.sort((a, b) => b.sale_id - a.sale_id));
-            setManagers(managersData);
-            setCounterparties(counterpartiesData);
-            setProducts(productsData);
-            setServices(servicesData);
-            setSaleStatuses(saleStatusesData);
+            const safeSales = ((salesData as any)?.data || []) as any[];
+            setSales(safeSales.sort((a: any, b: any) => b.sale_id - a.sale_id));
+            setManagers((managersData as any).data);
+            setCounterparties((counterpartiesData as any).data);
+            setProducts((productsData as any).data);
+            setServices((servicesData as any).data);
+            setSaleStatuses((((saleStatusesData as any)?.data) as SaleStatusType[]) || [
+                { sale_status_id: 1, name: 'Оплачено' } as any,
+                { sale_status_id: 2, name: 'Відтермінована оплата' } as any,
+            ]);
         } catch (error) {
             console.error("Failed to fetch sales data", error);
+            // Fallback to defaults so UI remains usable
+            if (saleStatuses.length === 0) {
+                setSaleStatuses([
+                    { sale_status_id: 1, name: 'Оплачено' } as any,
+                    { sale_status_id: 2, name: 'Відтермінована оплата' } as any,
+                ]);
+            }
         } finally {
             setLoading(false);
         }
@@ -316,7 +327,7 @@ const Sales: React.FC = () => {
 
     const handleDelete = async (id: number) => {
         if (window.confirm('Ви впевнені, що хочете видалити цей продаж?')) {
-            await api.delete('sales', id);
+            await SalesService.delete(id);
             fetchSalesAndDeps();
         }
     };
@@ -327,6 +338,16 @@ const Sales: React.FC = () => {
     };
     
     const baseInputClasses = "w-full px-3 py-2 text-sm rounded-md focus:outline-none glass-input";
+
+    const handleChangeSaleStatus = async (saleId: number, newStatus: string) => {
+        try {
+            await SalesService.update(saleId, { status: newStatus } as any);
+            setSales(prev => prev.map(s => s.sale_id === saleId ? { ...s, status: newStatus } as any : s));
+        } catch (e) {
+            console.error('Failed to update sale status', e);
+            alert('Не вдалося оновити статус продажу');
+        }
+    };
 
     return (
         <div>
@@ -392,8 +413,18 @@ const Sales: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{new Date(s.sale_date).toLocaleDateString()}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--text-primary)]">{s.counterparty?.name || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{s.responsible_manager ? `${s.responsible_manager.first_name} ${s.responsible_manager.last_name}` : 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{(s.total_price || 0).toFixed(2)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{s.status}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{Number(s.total_price || 0).toFixed(2)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">
+                                        <select
+                                            value={s.status}
+                                            onChange={(e) => handleChangeSaleStatus(s.sale_id, e.target.value)}
+                                            className="w-full px-2 py-1 rounded-md focus:outline-none glass-input"
+                                        >
+                                            {saleStatuses.map(st => (
+                                                <option key={st.sale_status_id} value={st.name}>{st.name}</option>
+                                            ))}
+                                        </select>
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                         <button onClick={() => handleDelete(s.sale_id)} className="text-red-400 hover:text-red-300"><TrashIcon className="h-5 w-5"/></button>
                                     </td>

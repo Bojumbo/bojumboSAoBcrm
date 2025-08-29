@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import { ProjectsService, ManagersService, CounterpartiesService, FunnelsService, FunnelStagesService, ProductsService, ServicesService, AuthService, SubProjectsService } from '../src/services/apiService';
 import { Project, SubProject, Task, Manager, SubProjectStatusType, SaleStatusType, Product, Service, Sale, Funnel, FunnelStage, Counterparty } from '../types';
 import { BriefcaseIcon, PencilIcon, TrashIcon, PlusIcon, ChartBarIcon, BanknotesIcon, ShoppingCartIcon, PaperAirplaneIcon, PaperClipIcon, XMarkIcon, DocumentArrowDownIcon } from '../components/Icons';
 
@@ -123,12 +123,12 @@ const ProjectSaleForm: React.FC<{
         const productsTotal = formData.products.reduce((sum, p) => {
             if (!p.product_id) return sum;
             const product = products.find(prod => prod.product_id.toString() === p.product_id);
-            return sum + (product ? product.price * p.quantity : 0);
+            return sum + (product ? Number(product.price) * p.quantity : 0);
         }, 0);
         const servicesTotal = formData.services.reduce((sum, s) => {
             if (!s.service_id) return sum;
             const service = services.find(serv => serv.service_id.toString() === s.service_id);
-            return sum + (service ? service.price : 0);
+            return sum + (service ? Number(service.price) : 0);
         }, 0);
         return productsTotal + servicesTotal;
     }, [formData.products, formData.services, products, services]);
@@ -177,7 +177,7 @@ const ProjectSaleForm: React.FC<{
                                 <div key={index} className="flex items-center gap-2">
                                     <select value={p.product_id} onChange={(e) => handleProductChange(index, 'product_id', e.target.value)} className={`${baseInputClasses} flex-grow`} required>
                                         <option value="" disabled>Виберіть товар</option>
-                                        {products.map(prod => <option key={prod.product_id} value={prod.product_id}>{prod.name} ({prod.price.toFixed(2)} грн)</option>)}
+                                        {products.map(prod => <option key={prod.product_id} value={prod.product_id}>{prod.name} ({Number(prod.price).toFixed(2)} грн)</option>)}
                                     </select>
                                     <input type="number" min="1" value={p.quantity} onChange={(e) => handleProductChange(index, 'quantity', e.target.value)} className={`${baseInputClasses} w-24 text-center`} placeholder="К-сть"/>
                                     <button type="button" onClick={() => handleRemoveProduct(index)} className="p-2 text-red-400 hover:text-red-300"><TrashIcon className="h-5 w-5"/></button>
@@ -196,7 +196,7 @@ const ProjectSaleForm: React.FC<{
                                 <div key={index} className="flex items-center gap-2">
                                     <select value={s.service_id} onChange={(e) => handleServiceChange(index, e.target.value)} className={`${baseInputClasses} flex-grow`} required>
                                         <option value="" disabled>Виберіть послугу</option>
-                                        {services.map(serv => <option key={serv.service_id} value={serv.service_id}>{serv.name} ({serv.price.toFixed(2)} грн)</option>)}
+                                        {services.map(serv => <option key={serv.service_id} value={serv.service_id}>{serv.name} ({Number(serv.price).toFixed(2)} грн)</option>)}
                                     </select>
                                     <button type="button" onClick={() => handleRemoveService(index)} className="p-2 text-red-400 hover:text-red-300"><TrashIcon className="h-5 w-5"/></button>
                                 </div>
@@ -448,31 +448,24 @@ const ProjectDetail: React.FC = () => {
         if (!projectId) return;
         setLoading(true);
         try {
-            const [projectData, managersData, counterpartiesData, funnelsData, funnelStagesData, spsData, productsData, servicesData, saleStatusesData, currentUserData] = await Promise.all([
-                api.getById<Project>('projects', projectId),
-                api.getAll<Manager>('managers'),
-                api.getAll<Counterparty>('counterparties'),
-                api.getAll<Funnel>('funnels'),
-                api.getAll<FunnelStage>('funnelStages'),
-                api.getAll<SubProjectStatusType>('subProjectStatuses'),
-                api.getAll<Product>('products'),
-                api.getAll<Service>('services'),
-                api.getAll<SaleStatusType>('saleStatuses'),
-                api.getCurrentUser(),
+            const [p, m, c, f, fs, prods, servs] = await Promise.all([
+                ProjectsService.getById(parseInt(projectId)),
+                ManagersService.getAll(),
+                CounterpartiesService.getAll(),
+                FunnelsService.getAll(),
+                FunnelStagesService.getAll(),
+                ProductsService.getAll(),
+                ServicesService.getAll(),
             ]);
-            setProject(projectData);
-            setManagers(managersData);
-            setCounterparties(counterpartiesData);
-            setFunnels(funnelsData);
-            setFunnelStages(funnelStagesData);
-            setSubProjectStatuses(spsData);
-            setProducts(productsData);
-            setServices(servicesData);
-            setSaleStatuses(saleStatusesData);
-            setCurrentUser(currentUserData);
-
+            setProject(p as any);
+            setManagers(m.data);
+            setCounterparties(c.data);
+            setFunnels(f.data);
+            setFunnelStages(fs.data);
+            setProducts(prods.data);
+            setServices(servs.data);
         } catch (error) {
-            console.error("Failed to fetch project details", error);
+            console.error('Failed to fetch project details', error);
         } finally {
             setLoading(false);
         }
@@ -481,6 +474,24 @@ const ProjectDetail: React.FC = () => {
     useEffect(() => {
         fetchProjectAndDeps();
     }, [fetchProjectAndDeps]);
+
+    // Load current user (needed to send comments)
+    useEffect(() => {
+        // try localStorage first for immediate availability
+        const stored = AuthService.getCurrentUserFromStorage?.();
+        if (stored) {
+            setCurrentUser(stored as any);
+        }
+        // also fetch fresh data from backend
+        (async () => {
+            try {
+                const me = await AuthService.getCurrentUser();
+                setCurrentUser(me as any);
+            } catch (e) {
+                // ignore; will rely on stored user if present
+            }
+        })();
+    }, []);
     
     useEffect(() => {
         if (project) {
@@ -501,6 +512,14 @@ const ProjectDetail: React.FC = () => {
         if (!formData?.funnel_id) return [];
         return funnelStages.filter(s => s.funnel_id.toString() === formData.funnel_id).sort((a, b) => a.order - b.order);
     }, [formData?.funnel_id, funnelStages]);
+
+    // Map available funnel stages to SubProjectStatusType-like options for the SubProject form
+    const subProjectStatusOptions: SubProjectStatusType[] = useMemo(() => {
+        return availableStages.map(s => ({
+            sub_project_status_id: s.funnel_stage_id as unknown as number,
+            name: s.name,
+        } as any));
+    }, [availableStages]);
     
     useEffect(() => {
         if (formData) {
@@ -527,7 +546,7 @@ const ProjectDetail: React.FC = () => {
                 funnel_stage_id: formData.funnel_stage_id ? parseInt(formData.funnel_stage_id) : null,
                 forecast_amount: Number(formData.forecast_amount) || 0,
             };
-            await api.update('projects', project.project_id, dataToSave);
+            await ProjectsService.update(project.project_id, dataToSave);
             await fetchProjectAndDeps();
         } catch (error) {
             console.error("Failed to save project", error);
@@ -542,7 +561,7 @@ const ProjectDetail: React.FC = () => {
         if (window.confirm('Ви впевнені, що хочете видалити цей проект? Ця дія незворотна.')) {
             setIsSubmitting(true);
             try {
-                await api.delete('projects', project.project_id);
+                await ProjectsService.delete(project.project_id);
                 alert('Проект успішно видалено.');
                 navigate('/projects');
             } catch (error) {
@@ -594,26 +613,37 @@ const ProjectDetail: React.FC = () => {
         switch(modalState.type) {
             case 'task':
             case 'subproject':
-                entity = modalState.type === 'task' ? 'tasks' : 'subprojects';
-                itemToSave = { ...data, project_id: projectId };
-                if (modalState.item) {
-                    const itemId = (modalState.item as any)[`${modalState.type}_id`];
-                    await api.update(entity, itemId, data);
+                if (modalState.type === 'subproject') {
+                    // Use dedicated service for subprojects
+                    if (modalState.item) {
+                        const subprojectId = (modalState.item as any).subproject_id;
+                        await SubProjectsService.update(subprojectId, { name: data.name, status: data.status, cost: data.cost } as any);
+                    } else {
+                        await SubProjectsService.create({ name: data.name, status: data.status, cost: data.cost, project_id: projectId } as any);
+                    }
                 } else {
-                    await api.create(entity, itemToSave);
+                    // Fallback for tasks remains via project update payload
+                    entity = 'tasks';
+                    itemToSave = { ...data, project_id: projectId };
+                    if (modalState.item) {
+                        const itemId = (modalState.item as any).task_id;
+                        await ProjectsService.update(projectId, { [entity]: { [itemId]: data } });
+                    } else {
+                        await ProjectsService.update(projectId, { [entity]: data });
+                    }
                 }
                 break;
             
             case 'sale':
                 itemToSave = { ...data, project_id: projectId };
-                await api.create('sales', itemToSave);
+                await ProjectsService.update(projectId, { sales: itemToSave });
                 break;
 
             case 'project_product':
             case 'project_service':
                 entity = `${modalState.type}s` as 'project_products' | 'project_services';
                 itemToSave = { ...data, project_id: projectId };
-                await api.create(entity, itemToSave);
+                await ProjectsService.update(projectId, { [entity]: itemToSave });
                 break;
         }
 
@@ -624,13 +654,15 @@ const ProjectDetail: React.FC = () => {
     const handleSubItemsDelete = async (type: 'task' | 'subproject' | 'sale' | 'project_product' | 'project_service', id: number) => {
         const entity = `${type}s` as 'tasks' | 'subprojects' | 'sales' | 'project_products' | 'project_services';
         if (window.confirm('Ви впевнені, що хочете видалити цей елемент?')) {
-            await api.delete(entity, id);
+            await ProjectsService.update(projectId, { [entity]: { [id]: null } });
             fetchProjectAndDeps();
         }
     };
     
     const handleAddComment = async (content: string, file: File | null) => {
-        if (!currentUser) return;
+        const fallbackUser = AuthService.getCurrentUserFromStorage?.();
+        const user = currentUser || (fallbackUser as any);
+        if (!user) return;
         
         let fileData = null;
         if (file) {
@@ -647,12 +679,12 @@ const ProjectDetail: React.FC = () => {
 
         const newComment = {
             project_id: projectId,
-            manager_id: currentUser.manager_id,
+            manager_id: user.manager_id,
             content: content,
             created_at: new Date().toISOString(),
             file: fileData,
         };
-        await api.create('project_comments', newComment);
+        await ProjectsService.addComment(projectId, newComment);
         fetchProjectAndDeps();
     };
 
@@ -716,7 +748,7 @@ const ProjectDetail: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <InfoCard title="Прогнозована сума" value={`${project.forecast_amount.toFixed(2)} грн`} icon={BanknotesIcon} />
+            <InfoCard title="Прогнозована сума" value={`${Number(project.forecast_amount).toFixed(2)} грн`} icon={BanknotesIcon} />
             <InfoCard title="Фактичні продажі" value={`${totalSales.toFixed(2)} грн`} icon={ShoppingCartIcon} />
             <InfoCard title="Заплановані витрати" value={`${(totalProducts + totalServices).toFixed(2)} грн`} icon={ChartBarIcon} />
             <InfoCard title="Етап воронки" value={project.funnel_stage?.name} icon={BriefcaseIcon} />
@@ -824,7 +856,7 @@ const ProjectDetail: React.FC = () => {
                                         <Link to={`/subprojects/${sp.subproject_id}`} className="hover:text-[var(--brand-secondary)]">{sp.name}</Link>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{sp.status}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{sp.cost.toFixed(2)} грн</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{Number(sp.cost).toFixed(2)} грн</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                         <button onClick={() => setModalState({ type: 'subproject', item: sp })} className="text-indigo-400 hover:text-indigo-300"><PencilIcon className="h-5 w-5"/></button>
                                         <button onClick={() => handleSubItemsDelete('subproject', sp.subproject_id)} className="text-red-400 hover:text-red-300"><TrashIcon className="h-5 w-5"/></button>
@@ -897,7 +929,7 @@ const ProjectDetail: React.FC = () => {
                             {project.sales?.map(s => (
                                 <tr key={s.sale_id} className="hover:bg-[var(--table-row-hover-bg)]">
                                     <td className="px-4 py-2 text-sm text-[var(--text-secondary)]">{new Date(s.sale_date).toLocaleDateString()}</td>
-                                    <td className="px-4 py-2 text-sm text-[var(--text-secondary)]">{(s.total_price || 0).toFixed(2)}</td>
+                                    <td className="px-4 py-2 text-sm text-[var(--text-secondary)]">{Number(s.total_price || 0).toFixed(2)}</td>
                                     <td className="px-4 py-2 text-sm text-[var(--text-secondary)]">{s.status}</td>
                                     <td className="px-4 py-2 text-right">
                                         <button onClick={() => handleSubItemsDelete('sale', s.sale_id)} className="text-red-400 hover:text-red-300"><TrashIcon className="h-4 w-4"/></button>
@@ -951,7 +983,7 @@ const ProjectDetail: React.FC = () => {
              </div>
         )}
 
-        {modalState.type === 'subproject' && <SubProjectForm item={modalState.item} onSave={handleSubItemsSave} onCancel={handleModalClose} statuses={subProjectStatuses} />}
+        {modalState.type === 'subproject' && <SubProjectForm item={modalState.item} onSave={handleSubItemsSave} onCancel={handleModalClose} statuses={subProjectStatusOptions} />}
         {modalState.type === 'task' && <TaskForm item={modalState.item} onSave={handleSubItemsSave} onCancel={handleModalClose} managers={managers} subprojects={project?.subprojects || []} />}
         {modalState.type === 'sale' && <ProjectSaleForm project={project} onSave={handleSubItemsSave} onCancel={handleModalClose} products={products} services={services} saleStatuses={saleStatuses} />}
         {modalState.type === 'project_product' && <AddProductToProjectForm onSave={handleSubItemsSave} onCancel={handleModalClose} products={products} />}
