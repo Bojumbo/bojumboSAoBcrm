@@ -1,4 +1,3 @@
-
 export interface Manager {
   manager_id: number;
   first_name: string;
@@ -10,8 +9,8 @@ export interface Manager {
 }
 
 export enum CounterpartyType {
-  INDIVIDUAL = 'Фізична особа',
-  LEGAL_ENTITY = 'Юридична особа',
+  INDIVIDUAL = 'individual',
+  LEGAL_ENTITY = 'legal_entity',
 }
 
 export interface Counterparty {

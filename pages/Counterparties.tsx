@@ -5,6 +5,11 @@ import { Counterparty, Manager, CounterpartyType } from '../types';
 import PageHeader from '../components/PageHeader';
 import { PencilIcon, TrashIcon, FunnelIcon } from '../components/Icons';
 
+const counterpartyTypeMap: { [key in CounterpartyType]: string } = {
+    [CounterpartyType.INDIVIDUAL]: 'Фіз. особа',
+    [CounterpartyType.LEGAL_ENTITY]: 'Юр. особа',
+};
+
 const CounterpartyForm: React.FC<{ counterparty?: Counterparty | null, onSave: () => void; onCancel: () => void; managers: Manager[] }> = ({ counterparty, onSave, onCancel, managers }) => {
     const [formData, setFormData] = useState({
         name: '',
@@ -38,7 +43,7 @@ const CounterpartyForm: React.FC<{ counterparty?: Counterparty | null, onSave: (
                 <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                     <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Назва" required className="w-full px-3 py-2 rounded-md focus:outline-none glass-input"/>
                     <select name="counterparty_type" value={formData.counterparty_type} onChange={handleChange} className="w-full px-3 py-2 rounded-md focus:outline-none glass-input">
-                        {Object.values(CounterpartyType).map(type => <option key={type} value={type}>{type}</option>)}
+                        {Object.entries(counterpartyTypeMap).map(([key, value]) => <option key={key} value={key}>{value}</option>)}
                     </select>
                     <select name="responsible_manager_id" value={formData.responsible_manager_id} onChange={handleChange} className="w-full px-3 py-2 rounded-md focus:outline-none glass-input">
                         <option value="">-- Відповідальний менеджер --</option>
@@ -148,7 +153,7 @@ const Counterparties: React.FC = () => {
                     </select>
                     <select name="counterparty_type" value={filters.counterparty_type} onChange={handleFilterChange} className={baseInputClasses}>
                         <option value="">Всі типи</option>
-                        {Object.values(CounterpartyType).map(type => <option key={type} value={type}>{type}</option>)}
+                        {Object.entries(counterpartyTypeMap).map(([key, value]) => <option key={key} value={key}>{value}</option>)}
                     </select>
                 </div>
                 <div className="mt-4 flex justify-end">
@@ -178,7 +183,7 @@ const Counterparties: React.FC = () => {
                             filteredCounterparties.map((c) => (
                                 <tr key={c.counterparty_id} className="hover:bg-[var(--table-row-hover-bg)] transition-colors duration-200">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[var(--text-primary)]">{c.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{c.counterparty_type}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{counterpartyTypeMap[c.counterparty_type] || c.counterparty_type}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-secondary)]">{c.responsible_manager ? `${c.responsible_manager.first_name} ${c.responsible_manager.last_name}` : 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                         <button onClick={() => handleEdit(c)} className="text-indigo-400 hover:text-indigo-300"><PencilIcon className="h-5 w-5"/></button>

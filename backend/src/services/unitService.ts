@@ -1,6 +1,12 @@
 import { prisma } from '../config/database.js';
 import { Unit } from '../types/index.js';
 
+// Define a specific input type for creating and updating units
+interface UnitInput {
+    name: string;
+    // The 'short_name' field from the old types is not in the schema for Unit.
+}
+
 export class UnitService {
   static async getAll(): Promise<Unit[]> {
     return await prisma.unit.findMany();
@@ -12,13 +18,13 @@ export class UnitService {
     });
   }
 
-  static async create(data: Omit<Unit, 'unit_id' | 'created_at'>): Promise<Unit> {
+  static async create(data: UnitInput): Promise<Unit> {
     return await prisma.unit.create({
       data
     });
   }
 
-  static async update(id: number, data: Partial<Unit>): Promise<Unit | null> {
+  static async update(id: number, data: Partial<UnitInput>): Promise<Unit | null> {
     return await prisma.unit.update({
       where: { unit_id: id },
       data

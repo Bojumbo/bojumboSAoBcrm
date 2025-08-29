@@ -52,7 +52,7 @@ const Sidebar: React.FC = () => {
       <div className="h-20 flex items-center justify-center px-4">
         <div className="flex items-center space-x-3">
             <ChartBarIcon className="h-8 w-8 text-[var(--brand-secondary)]" />
-            <span className="text-xl font-bold text-[var(--text-primary)] tracking-wider">Glass CRM</span>
+            <span className="text-xl font-bold text-[var(--text-primary)] tracking-wider">SAoB CRM</span>
         </div>
       </div>
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

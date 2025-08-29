@@ -1,6 +1,12 @@
 import { prisma } from '../config/database.js';
 import { Warehouse } from '../types/index.js';
 
+// Define a specific input type for creating and updating warehouses
+interface WarehouseInput {
+    name: string;
+    location: string;
+}
+
 export class WarehouseService {
   static async getAll(): Promise<Warehouse[]> {
     return await prisma.warehouse.findMany();
@@ -12,13 +18,13 @@ export class WarehouseService {
     });
   }
 
-  static async create(data: Omit<Warehouse, 'warehouse_id' | 'created_at'>): Promise<Warehouse> {
+  static async create(data: WarehouseInput): Promise<Warehouse> {
     return await prisma.warehouse.create({
       data
     });
   }
 
-  static async update(id: number, data: Partial<Warehouse>): Promise<Warehouse | null> {
+  static async update(id: number, data: Partial<WarehouseInput>): Promise<Warehouse | null> {
     return await prisma.warehouse.update({
       where: { warehouse_id: id },
       data

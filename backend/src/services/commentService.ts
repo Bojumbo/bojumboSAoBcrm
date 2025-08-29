@@ -1,6 +1,25 @@
 import { prisma } from '../config/database.js';
 import { ProjectComment, SubProjectComment, ProjectCommentWithRelations, SubProjectCommentWithRelations } from '../types/index.js';
 
+// Define specific input types for creating comments to ensure type safety.
+interface CreateProjectCommentInput {
+  project_id: number;
+  manager_id: number;
+  content: string;
+  file_name?: string | null;
+  file_type?: string | null;
+  file_url?: string | null;
+}
+
+interface CreateSubProjectCommentInput {
+  subproject_id: number;
+  manager_id: number;
+  content: string;
+  file_name?: string | null;
+  file_type?: string | null;
+  file_url?: string | null;
+}
+
 export class CommentService {
   // Project Comments
   static async getProjectComments(projectId: number): Promise<ProjectCommentWithRelations[]> {
@@ -20,7 +39,7 @@ export class CommentService {
       orderBy: {
         created_at: 'asc'
       }
-    });
+    }) as unknown as ProjectCommentWithRelations[];
   }
 
   static async getProjectCommentById(commentId: number): Promise<ProjectCommentWithRelations | null> {
@@ -37,16 +56,16 @@ export class CommentService {
           }
         }
       }
-    });
+    }) as unknown as ProjectCommentWithRelations;
   }
 
-  static async createProjectComment(data: Omit<ProjectComment, 'comment_id' | 'created_at'>): Promise<ProjectComment> {
+  static async createProjectComment(data: CreateProjectCommentInput): Promise<ProjectComment> {
     return await prisma.projectComment.create({
       data
     });
   }
 
-  static async updateProjectComment(commentId: number, data: Partial<ProjectComment>): Promise<ProjectComment | null> {
+  static async updateProjectComment(commentId: number, data: Partial<CreateProjectCommentInput>): Promise<ProjectComment | null> {
     return await prisma.projectComment.update({
       where: { comment_id: commentId },
       data
@@ -82,7 +101,7 @@ export class CommentService {
       orderBy: {
         created_at: 'asc'
       }
-    });
+    }) as unknown as SubProjectCommentWithRelations[];
   }
 
   static async getSubProjectCommentById(commentId: number): Promise<SubProjectCommentWithRelations | null> {
@@ -99,16 +118,16 @@ export class CommentService {
           }
         }
       }
-    });
+    }) as unknown as SubProjectCommentWithRelations;
   }
 
-  static async createSubProjectComment(data: Omit<SubProjectComment, 'comment_id' | 'created_at'>): Promise<SubProjectComment> {
+  static async createSubProjectComment(data: CreateSubProjectCommentInput): Promise<SubProjectComment> {
     return await prisma.subProjectComment.create({
       data
     });
   }
 
-  static async updateSubProjectComment(commentId: number, data: Partial<SubProjectComment>): Promise<SubProjectComment | null> {
+  static async updateSubProjectComment(commentId: number, data: Partial<CreateSubProjectCommentInput>): Promise<SubProjectComment | null> {
     return await prisma.subProjectComment.update({
       where: { comment_id: commentId },
       data

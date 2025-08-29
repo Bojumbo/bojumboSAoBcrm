@@ -1,6 +1,13 @@
 import { prisma } from '../config/database.js';
-import { Counterparty, CounterpartyWithRelations } from '../types/index.js';
+import { Counterparty, CounterpartyWithRelations, CounterpartyTypeEnum } from '../types/index.js';
 import { AuthService } from './authService.js';
+
+// Define a specific input type for creating and updating counterparties
+interface CounterpartyInput {
+  name: string;
+  counterparty_type: CounterpartyTypeEnum;
+  responsible_manager_id?: number | null;
+}
 
 export class CounterpartyService {
   static async getAll(userRole: string, userId: number): Promise<CounterpartyWithRelations[]> {
@@ -17,20 +24,13 @@ export class CounterpartyService {
       }
     }
 
-    return await prisma.counterparty.findMany({
+    const counterparties = await prisma.counterparty.findMany({
       where: whereClause,
       include: {
-        responsible_manager: {
-          select: {
-            manager_id: true,
-            first_name: true,
-            last_name: true,
-            email: true,
-            role: true
-          }
-        }
+        responsible_manager: true
       }
     });
+    return counterparties as unknown as CounterpartyWithRelations[];
   }
 
   static async getById(id: number, userRole: string, userId: number): Promise<CounterpartyWithRelations | null> {
@@ -47,29 +47,25 @@ export class CounterpartyService {
       }
     }
 
-    return await prisma.counterparty.findFirst({
+    const counterparty = await prisma.counterparty.findFirst({
       where: whereClause,
       include: {
-        responsible_manager: {
-          select: {
-            manager_id: true,
-            first_name: true,
-            last_name: true,
-            email: true,
-            role: true
-          }
-        }
+        responsible_manager: true,
+        projects: true,
+        sales: true
       }
     });
+
+    return counterparty as unknown as CounterpartyWithRelations;
   }
 
-  static async create(data: Omit<Counterparty, 'counterparty_id' | 'created_at' | 'updated_at'>): Promise<Counterparty> {
+  static async create(data: CounterpartyInput): Promise<Counterparty> {
     return await prisma.counterparty.create({
       data
     });
   }
 
-  static async update(id: number, data: Partial<Counterparty>): Promise<Counterparty | null> {
+  static async update(id: number, data: Partial<CounterpartyInput>): Promise<Counterparty | null> {
     return await prisma.counterparty.update({
       where: { counterparty_id: id },
       data
@@ -78,11 +74,20 @@ export class CounterpartyService {
 
   static async delete(id: number): Promise<boolean> {
     try {
+      // Add logic to handle related records if necessary
+      await prisma.project.updateMany({
+        where: { counterparty_id: id },
+        data: { counterparty_id: null }
+      });
+      await prisma.sale.deleteMany({
+        where: { counterparty_id: id }
+      });
       await prisma.counterparty.delete({
         where: { counterparty_id: id }
       });
       return true;
-    } catch {
+    } catch (e) {
+      console.error(e);
       return false;
     }
   }
