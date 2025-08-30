@@ -19,16 +19,16 @@ const toSaleWithRelations = (
         (sum, item) => sum + item.product.price.toNumber() * item.quantity,
         0
     );
-    const servicesTotal = sale.services.reduce(
-        (sum, item) => sum + item.service.price.toNumber(),
-        0
-    );
+  const servicesTotal = sale.services.reduce(
+    (sum, item) => sum + item.service.price.toNumber(),
+    0
+  );
 
     return {
         ...sale,
         total_price: productsTotal + servicesTotal,
-        products: sale.products.map(p => ({...p, product: {...p.product, price: p.product.price.toNumber()}})),
-        services: sale.services.map(s => ({...s, service: {...s.service, price: s.service.price.toNumber()}})),
+  products: sale.products.map(p => ({...p, product: {...p.product, price: p.product.price.toNumber()}})),
+  services: sale.services.map(s => ({...s, service: {...s.service, price: s.service.price.toNumber()}})),
     } as unknown as SaleWithRelations;
 };
 
@@ -83,7 +83,26 @@ export class SaleService {
   }
 
   static async create(data: CreateSaleRequest): Promise<Sale> {
-    const { products, services, ...saleData } = data;
+    const { products, services, ...raw } = data as any;
+
+    // Convert possible numeric status (sale_status_type_id) to status name expected by schema
+    let statusValue = raw.status;
+    if (typeof statusValue === 'number') {
+      const s = await prisma.saleStatusType.findUnique({ where: { sale_status_id: statusValue } });
+      if (s) statusValue = s.name;
+      else throw new Error('INVALID_SALE_STATUS');
+    }
+
+  const saleData: any = { ...raw, status: statusValue };
+  // Remove non-persisted helper field if present
+  if ('subproject_id' in saleData) delete saleData.subproject_id;
+
+    if (!saleData.counterparty_id) {
+      throw new Error('COUNTERPARTY_REQUIRED');
+    }
+    if (!saleData.responsible_manager_id) {
+      throw new Error('RESPONSIBLE_REQUIRED');
+    }
 
     return await prisma.sale.create({
       data: {
@@ -91,15 +110,18 @@ export class SaleService {
         sale_date: new Date(saleData.sale_date),
         deferred_payment_date: saleData.deferred_payment_date ? new Date(saleData.deferred_payment_date) : null,
         products: products ? {
-          create: products.map(p => ({
+          create: products.map((p: { product_id: number; quantity: number }) => ({
             quantity: p.quantity,
             product: { connect: { product_id: p.product_id } }
           }))
         } : undefined,
         services: services ? {
-          create: services.map(s => ({
-            service: { connect: { service_id: s.service_id } }
-          }))
+          create: services.flatMap((s: { service_id: number; quantity?: number }) => {
+            const qty = Math.max(1, Math.round(Number(s.quantity ?? 1)));
+            return Array.from({ length: qty }).map(() => ({
+              service: { connect: { service_id: s.service_id } }
+            }));
+          })
         } : undefined
       }
     });
@@ -117,22 +139,35 @@ export class SaleService {
         updateData.deferred_payment_date = new Date(saleData.deferred_payment_date);
     }
 
+    // If status provided as numeric id, map to name like in create()
+    if (typeof updateData.status === 'number') {
+      const s = await prisma.saleStatusType.findUnique({ where: { sale_status_id: updateData.status } });
+      if (!s) throw new Error('INVALID_SALE_STATUS');
+      updateData.status = s.name;
+    }
+
+  // Remove non-persisted helper field if present
+  if ('subproject_id' in updateData) delete (updateData as any).subproject_id;
+
     const updatedSale = await prisma.sale.update({
       where: { sale_id: id },
       data: {
         ...updateData,
         products: products ? {
-          deleteMany: {}, // Clear existing products
+          deleteMany: {},
           create: products.map(p => ({
             quantity: p.quantity,
             product: { connect: { product_id: p.product_id } }
           }))
         } : undefined,
         services: services ? {
-          deleteMany: {}, // Clear existing services
-          create: services.map(s => ({
-            service: { connect: { service_id: s.service_id } }
-          }))
+          deleteMany: {},
+          create: services.flatMap(s => {
+            const qty = Math.max(1, Math.round(Number((s as any).quantity ?? 1)));
+            return Array.from({ length: qty }).map(() => ({
+              service: { connect: { service_id: s.service_id } }
+            }));
+          })
         } : undefined
       }
     });

@@ -192,11 +192,12 @@ export interface CreateSaleRequest {
   counterparty_id: number;
   responsible_manager_id: number;
   sale_date: Date | string;
-  status: string;
+  status: string | number; // allow numeric id from client, convert server-side
   deferred_payment_date?: Date | string | null;
   project_id?: number | null;
+  subproject_id?: number | null;
   products?: { product_id: number; quantity: number }[];
-  services?: { service_id: number }[];
+  services?: { service_id: number; quantity?: number }[];
 }
 
 export interface UpdateSaleRequest extends Partial<CreateSaleRequest> {}

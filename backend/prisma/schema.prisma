@@ -292,6 +292,8 @@ model Task {
   project_id Int?
   subproject_id Int?
   due_date DateTime?
+  // New: task status with sensible default
+  status TaskStatus @default(new)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -302,6 +304,15 @@ model Task {
   subproject SubProject? @relation(fields: [subproject_id], references: [subproject_id], onDelete: Cascade)
 
   @@map("tasks")
+}
+
+// Enumerated statuses for tasks
+enum TaskStatus {
+  new
+  in_progress
+  blocked
+  done
+  cancelled
 }
 
 model ProjectProduct {

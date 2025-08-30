@@ -11,8 +11,8 @@ interface TaskInput {
     project_id?: number | null;
     subproject_id?: number | null;
     due_date?: Date | null;
-    // The 'status' and 'priority' fields from the old types are not in the schema for Task.
-    // If they are needed, they should be added to the schema.prisma file.
+  // status is an enum in schema; keep it as string here to avoid client type drift
+  status?: string;
 }
 
 export class TaskService {
@@ -66,16 +66,28 @@ export class TaskService {
   }
 
   static async create(data: TaskInput): Promise<Task> {
-    return await prisma.task.create({
-      data
+    return await (prisma as any).task.create({
+      data: data as any
     });
   }
 
   static async update(id: number, data: Partial<TaskInput>): Promise<Task | null> {
-    return await prisma.task.update({
+    return await (prisma as any).task.update({
       where: { task_id: id },
-      data
+      data: data as any
     });
+  }
+
+  static async updateStatus(id: number, status: string): Promise<Task | null> {
+    try {
+      // Prefer normal client if available
+      return await (prisma as any).task.update({ where: { task_id: id }, data: { status } });
+    } catch {
+      // Fallback to raw query if client types/engine mismatch on Windows
+      await (prisma as any).$executeRawUnsafe(`UPDATE tasks SET status = $1 WHERE task_id = $2`, status, id);
+      const updated = await prisma.task.findUnique({ where: { task_id: id } });
+      return updated as any;
+    }
   }
 
   static async delete(id: number): Promise<boolean> {

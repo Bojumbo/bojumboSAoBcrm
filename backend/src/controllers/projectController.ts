@@ -168,4 +168,77 @@ export class ProjectController {
       });
     }
   }
+
+  // Add a product to a project
+  static async addProduct(req: Request, res: Response) {
+    try {
+      if (!req.user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+      const projectId = parseInt(req.params.id);
+      const { product_id, quantity } = req.body || {};
+      if (isNaN(projectId) || !product_id || !quantity) return res.status(400).json({ success: false, error: 'Invalid payload' });
+      const item = await ProjectService.addProduct(projectId, { product_id: Number(product_id), quantity: Number(quantity) });
+      res.status(201).json({ success: true, data: item });
+    } catch (error) {
+      console.error('Add project product error:', error);
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+
+  static async removeProduct(req: Request, res: Response) {
+    try {
+      if (!req.user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+      const project_product_id = parseInt(req.params.project_product_id);
+      if (isNaN(project_product_id)) return res.status(400).json({ success: false, error: 'Invalid ID' });
+      const ok = await ProjectService.removeProduct(project_product_id);
+      if (!ok) return res.status(404).json({ success: false, error: 'Not found' });
+      res.json({ success: true, message: 'Removed' });
+    } catch (error) {
+      console.error('Remove project product error:', error);
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+
+  // Add a service to a project
+  static async addService(req: Request, res: Response) {
+    try {
+      if (!req.user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+      const projectId = parseInt(req.params.id);
+  const { service_id, quantity } = req.body || {};
+  if (isNaN(projectId) || !service_id) return res.status(400).json({ success: false, error: 'Invalid payload' });
+  const result = await ProjectService.addService(projectId, { service_id: Number(service_id), quantity: Number(quantity) });
+  res.status(201).json({ success: true, data: result });
+    } catch (error) {
+      console.error('Add project service error:', error);
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+
+  static async removeService(req: Request, res: Response) {
+    try {
+      if (!req.user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+      const project_service_id = parseInt(req.params.project_service_id);
+      if (isNaN(project_service_id)) return res.status(400).json({ success: false, error: 'Invalid ID' });
+      const ok = await ProjectService.removeService(project_service_id);
+      if (!ok) return res.status(404).json({ success: false, error: 'Not found' });
+      res.json({ success: true, message: 'Removed' });
+    } catch (error) {
+      console.error('Remove project service error:', error);
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+
+  static async removeServiceByServiceId(req: Request, res: Response) {
+    try {
+      if (!req.user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+      const project_id = parseInt(req.params.id);
+      const service_id = parseInt(req.params.service_id);
+      if (isNaN(project_id) || isNaN(service_id)) return res.status(400).json({ success: false, error: 'Invalid ID' });
+      const ok = await ProjectService.removeServiceByServiceId(project_id, service_id);
+      if (!ok) return res.status(404).json({ success: false, error: 'Not found' });
+      res.json({ success: true, message: 'Removed' });
+    } catch (error) {
+      console.error('Remove project service by service_id error:', error);
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
 }

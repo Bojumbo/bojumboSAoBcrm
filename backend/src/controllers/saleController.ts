@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { SaleService } from '../services/saleService.js';
+import { prisma } from '../config/database.js';
 
 export class SaleController {
   static async getAll(req: Request, res: Response) {
@@ -74,19 +75,54 @@ export class SaleController {
         });
       }
 
-      const saleData = req.body;
-      const sale = await SaleService.create(saleData);
+      const saleData = { ...req.body } as any;
+
+      // Always attach to the manager who creates the sale
+      saleData.responsible_manager_id = req.user.manager_id;
+
+      // If created within a project or subproject context, ensure linkage and auto-fill counterparty
+      if (saleData.subproject_id) {
+        const sub = await prisma.subProject.findUnique({
+          where: { subproject_id: Number(saleData.subproject_id) },
+          select: { project_id: true, project: { select: { counterparty_id: true } } }
+        });
+        if (sub) {
+          saleData.project_id = sub.project_id;
+          if (!saleData.counterparty_id && sub.project?.counterparty_id) {
+            saleData.counterparty_id = sub.project.counterparty_id;
+          }
+        }
+      } else if (saleData.project_id) {
+        const project = await prisma.project.findUnique({
+          where: { project_id: Number(saleData.project_id) },
+          select: { counterparty_id: true }
+        });
+        if (!saleData.counterparty_id && project?.counterparty_id) {
+          saleData.counterparty_id = project.counterparty_id;
+        }
+      }
+
+      // Default sale date to now if not provided
+      if (!saleData.sale_date) {
+        saleData.sale_date = new Date().toISOString();
+      }
+  // Persist without subproject_id column; linkage to project handled above
+  delete (saleData as any).subproject_id;
+  const sale = await SaleService.create(saleData);
 
       res.status(201).json({
         success: true,
         data: sale
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create sale error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Internal server error'
-      });
+      if (error?.message === 'COUNTERPARTY_REQUIRED') {
+        return res.status(400).json({ success: false, error: 'Потрібно обрати контрагента' });
+      }
+      if (error?.message === 'INVALID_SALE_STATUS') {
+        return res.status(400).json({ success: false, error: 'Невірний статус продажу' });
+      }
+      res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
 

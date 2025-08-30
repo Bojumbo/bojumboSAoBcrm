@@ -1,7 +1,7 @@
 import { prisma } from '../config/database.js';
 import { Manager, ManagerWithRelations, ManagerRole } from '../types/index.js';
 import { AuthService } from './authService.js';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 interface ManagerInput {
   first_name: string;

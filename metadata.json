@@ -1,5 +1,0 @@
-{
-  "name": "Modern CRM System",
-  "description": "A comprehensive CRM (Customer Relationship Management) system built as a Single Page Application using React and Tailwind CSS. It allows managing managers, counterparties, products, services, sales, and projects.",
-  "requestFramePermissions": []
-}

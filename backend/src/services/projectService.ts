@@ -78,7 +78,7 @@ export class ProjectService {
         // Authorization logic can be added here if needed
     }
 
-    const project = await prisma.project.findFirst({
+  const project = await prisma.project.findFirst({
       where: whereClause,
       include: {
         main_responsible_manager: true,
@@ -90,16 +90,41 @@ export class ProjectService {
         tasks: { include: { responsible_manager: true, creator_manager: true } },
         sales: { include: { counterparty: true, responsible_manager: true, products: { include: { product: true }}, services: { include: { service: true }} } },
         products: { include: { product: { include: { unit: true } } } },
-        services: { include: { service: true } },
+    services: { include: { service: true } },
         comments: { include: { manager: true }, orderBy: { created_at: 'asc' } }
       }
     });
 
     if (!project) return null;
-    
-    // A proper recursive converter would be ideal here, but for now, let's cast and fix the most obvious issues.
-    // This is a temporary workaround to satisfy the type checker.
-    return project as unknown as ProjectWithRelations;
+    // Normalize products (ensure numeric quantity)
+    const projAny: any = project;
+    if (projAny?.products?.length) {
+      projAny.products = projAny.products.map((pp: any) => ({
+        ...pp,
+        quantity: Number(pp.quantity ?? 1),
+        product: pp.product ? { ...pp.product, price: Number(pp.product.price?.toNumber ? pp.product.price.toNumber() : pp.product.price) } : pp.product
+      }));
+    }
+    // Aggregate services by service_id and compute fractional quantity in steps of 0.1
+    if (projAny?.services?.length) {
+      const grouped = new Map<number, any>();
+      for (const ps of projAny.services as any[]) {
+        const sid = ps.service_id || ps.service?.service_id;
+        if (!sid) continue;
+        const g = grouped.get(sid);
+        if (g) {
+          g._count += 1;
+        } else {
+          grouped.set(sid, { ...ps, _count: 1 });
+        }
+      }
+      projAny.services = Array.from(grouped.values()).map((it: any) => ({
+        ...it,
+        quantity: (it._count || 1) / 10,
+        service: it.service ? { ...it.service, price: Number(it.service.price?.toNumber ? it.service.price.toNumber() : it.service.price) } : it.service
+      }));
+    }
+    return projAny as ProjectWithRelations;
   }
 
   static async create(data: CreateProjectRequest): Promise<Project> {
@@ -148,6 +173,54 @@ export class ProjectService {
     try {
       await prisma.projectManager.deleteMany({ where: { project_id: id }});
       await prisma.project.delete({ where: { project_id: id } });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  static async addProduct(project_id: number, data: { product_id: number; quantity: number }) {
+    const created = await prisma.projectProduct.create({
+      data: {
+        project_id,
+        product_id: data.product_id,
+        quantity: data.quantity
+      },
+      include: { product: { include: { unit: true } } }
+    });
+    return { ...created, quantity: Number((created as any).quantity ?? data.quantity) } as any;
+  }
+
+  static async removeProduct(project_product_id: number): Promise<boolean> {
+    try {
+      await prisma.projectProduct.delete({ where: { project_product_id } });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  static async addService(project_id: number, data: { service_id: number; quantity?: number }) {
+    const raw = Number(data.quantity);
+    const units = Math.max(1, Math.round((isNaN(raw) ? 1 : raw) * 10)); // store as tenths
+    await prisma.projectService.deleteMany({ where: { project_id, service_id: data.service_id } });
+    await prisma.projectService.createMany({ data: Array.from({ length: units }).map(() => ({ project_id, service_id: data.service_id })) });
+    const svc = await prisma.service.findUnique({ where: { service_id: data.service_id } });
+    return { project_id, service_id: data.service_id, quantity: units / 10, service: svc } as any;
+  }
+
+  static async removeService(project_service_id: number): Promise<boolean> {
+    try {
+      await prisma.projectService.delete({ where: { project_service_id } });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  static async removeServiceByServiceId(project_id: number, service_id: number): Promise<boolean> {
+    try {
+      await prisma.projectService.deleteMany({ where: { project_id, service_id } });
       return true;
     } catch {
       return false;
