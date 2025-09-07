@@ -29,6 +29,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+if (!config.jwt.secret) {
+  console.error('FATAL ERROR: JWT secret is not defined.');
+  process.exit(1);
+}
+
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(process.cwd(), config.upload.dir)));
 
