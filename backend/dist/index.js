@@ -20,11 +20,16 @@ import projectRoutes from './routes/projects.js';
 import uploadRoutes from './routes/upload.js';
 import saleStatusTypeRoutes from './routes/saleStatusTypes.js';
 import subProjectStatusTypeRoutes from './routes/subProjectStatusTypes.js';
+import subProjectFunnelRoutes from './routes/subProjectFunnels.js';
 const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+if (!config.jwt.secret) {
+    console.error('FATAL ERROR: JWT secret is not defined.');
+    process.exit(1);
+}
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(process.cwd(), config.upload.dir)));
 // Health check endpoint
@@ -47,7 +52,8 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/sale-status-types', saleStatusTypeRoutes);
-app.use('/api/subproject-status-types', subProjectStatusTypeRoutes);
+app.use('/api/sub-project-status-types', subProjectStatusTypeRoutes);
+app.use('/api/sub-project-funnels', subProjectFunnelRoutes);
 // 404 handler
 app.use('*', (req, res) => {
     res.status(404).json({ error: 'Route not found' });

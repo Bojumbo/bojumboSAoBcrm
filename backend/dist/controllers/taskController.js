@@ -67,8 +67,7 @@ export class TaskController {
             }
             const taskData = {
                 ...req.body,
-                creator_manager_id: req.user.manager_id,
-                status: req.body?.status || 'new'
+                creator_manager_id: req.user.manager_id
             };
             const task = await TaskService.create(taskData);
             res.status(201).json({
@@ -176,12 +175,18 @@ export class TaskController {
             if (!status) {
                 return res.status(400).json({ success: false, error: 'Missing status' });
             }
+            const allowed = ['new', 'in_progress', 'blocked', 'done', 'cancelled'];
+            if (!allowed.includes(status)) {
+                return res.status(400).json({ success: false, error: 'Invalid status' });
+            }
             const existing = await TaskService.getById(id, req.user.role, req.user.manager_id);
             if (!existing) {
                 return res.status(404).json({ success: false, error: 'Task not found' });
             }
-            // Only responsible manager (assignee) can change status; admins allowed
-            if ((existing.responsible_manager_id ?? 0) !== req.user.manager_id && req.user.role !== 'admin') {
+            // Assignee or Creator (or admin) can change status
+            const isAssignee = (existing.responsible_manager_id ?? 0) === req.user.manager_id;
+            const isCreator = (existing.creator_manager_id ?? 0) === req.user.manager_id;
+            if (!isAssignee && !isCreator && req.user.role !== 'admin') {
                 return res.status(403).json({ success: false, error: 'Only the assignee can change status' });
             }
             const updated = await TaskService.updateStatus(id, status);

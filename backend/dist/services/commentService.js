@@ -38,7 +38,18 @@ export class CommentService {
     }
     static async createProjectComment(data) {
         return await prisma.projectComment.create({
-            data
+            data,
+            include: {
+                manager: {
+                    select: {
+                        manager_id: true,
+                        first_name: true,
+                        last_name: true,
+                        email: true,
+                        role: true
+                    }
+                }
+            }
         });
     }
     static async updateProjectComment(commentId, data) {
@@ -49,8 +60,9 @@ export class CommentService {
     }
     static async deleteProjectComment(commentId) {
         try {
-            await prisma.projectComment.delete({
-                where: { comment_id: commentId }
+            await prisma.projectComment.update({
+                where: { comment_id: commentId },
+                data: { is_deleted: true }
             });
             return true;
         }
@@ -96,7 +108,18 @@ export class CommentService {
     }
     static async createSubProjectComment(data) {
         return await prisma.subProjectComment.create({
-            data
+            data,
+            include: {
+                manager: {
+                    select: {
+                        manager_id: true,
+                        first_name: true,
+                        last_name: true,
+                        email: true,
+                        role: true
+                    }
+                }
+            }
         });
     }
     static async updateSubProjectComment(commentId, data) {
@@ -107,8 +130,9 @@ export class CommentService {
     }
     static async deleteSubProjectComment(commentId) {
         try {
-            await prisma.subProjectComment.delete({
-                where: { comment_id: commentId }
+            await prisma.subProjectComment.update({
+                where: { comment_id: commentId },
+                data: { is_deleted: true }
             });
             return true;
         }

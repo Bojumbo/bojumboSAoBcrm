@@ -409,6 +409,7 @@ model ProjectComment {
   file_name String?
   file_type String?
   file_url String?
+  is_deleted Boolean @default(false)
   created_at DateTime @default(now())
 
   // Relationships
@@ -426,6 +427,7 @@ model SubProjectComment {
   file_name String?
   file_type String?
   file_url String?
+  is_deleted Boolean @default(false)
   created_at DateTime @default(now())
 
   // Relationships

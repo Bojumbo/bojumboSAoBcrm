@@ -1,4 +1,4 @@
-import { Manager as PrismaManager, Counterparty as PrismaCounterparty, Product as PrismaProduct, Service as PrismaService, Warehouse as PrismaWarehouse, Sale as PrismaSale, Project as PrismaProject, SubProject as PrismaSubProject, Task as PrismaTask, Unit as PrismaUnit, SaleStatusType as PrismaSaleStatusType, SubProjectStatusType as PrismaSubProjectStatusType, ProjectProduct as PrismaProjectProduct, ProjectService as PrismaProjectService, ProjectComment as PrismaProjectComment, ProductStock as PrismaProductStock, Funnel as PrismaFunnel, FunnelStage as PrismaFunnelStage, SubProjectComment as PrismaSubProjectComment, SubProjectProduct as PrismaSubProjectProduct, SubProjectService as PrismaSubProjectService, ProjectManager as PrismaProjectManager, CounterpartyType as PrismaCounterpartyType, SaleProduct as PrismaSaleProduct, SaleService as PrismaSaleService } from '@prisma/client';
+import { Manager as PrismaManager, Counterparty as PrismaCounterparty, Product as PrismaProduct, Service as PrismaService, Warehouse as PrismaWarehouse, Sale as PrismaSale, Project as PrismaProject, SubProject as PrismaSubProject, Task as PrismaTask, Unit as PrismaUnit, SaleStatusType as PrismaSaleStatusType, SubProjectStatusType as PrismaSubProjectStatusType, ProjectProduct as PrismaProjectProduct, ProjectService as PrismaProjectService, ProjectComment as PrismaProjectComment, ProductStock as PrismaProductStock, Funnel as PrismaFunnel, FunnelStage as PrismaFunnelStage, SubProjectComment as PrismaSubProjectComment, SubProjectProduct as PrismaSubProjectProduct, SubProjectService as PrismaSubProjectService, ProjectManager as PrismaProjectManager, CounterpartyType as PrismaCounterpartyType, SaleProduct as PrismaSaleProduct, SaleService as PrismaSaleService, SubProjectFunnel as PrismaSubProjectFunnel, SubProjectFunnelStage as PrismaSubProjectFunnelStage } from '@prisma/client';
 export type { ManagerRole, CounterpartyType as CounterpartyTypeEnum } from '@prisma/client';
 export type Manager = PrismaManager;
 export type Counterparty = Omit<PrismaCounterparty, 'counterparty_type'> & {
@@ -33,6 +33,8 @@ export type ProjectManager = PrismaProjectManager;
 export type CounterpartyType = PrismaCounterpartyType;
 export type SaleStatusType = PrismaSaleStatusType;
 export type SubProjectStatusType = PrismaSubProjectStatusType;
+export type SubProjectFunnel = PrismaSubProjectFunnel;
+export type SubProjectFunnelStage = PrismaSubProjectFunnelStage;
 export interface ManagerWithRelations extends Manager {
     supervisors?: Manager[];
     subordinates?: Manager[];

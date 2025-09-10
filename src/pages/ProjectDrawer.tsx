@@ -17,6 +17,7 @@ import { ServicesService, Service } from '../services/ServicesService';
 import GlassModal from '../components/GlassModal';
 import { FunnelsService, Funnel } from '../services/FunnelsService';
 import TaskViewModal from '../components/TaskViewModal';
+import { useAuth } from '../context/AuthContext';
 
 type Props = {
   projectId: number | null;
@@ -26,6 +27,7 @@ type Props = {
 };
 
 export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Props) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +76,13 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
     return sum + price * qty;
   }, 0);
   const grandTotal = productsTotal + servicesTotal;
+
+  // Project products and services totals
+  const projectProductsTotal = (data?.products || []).reduce((sum: number, pp: any) => 
+    sum + (pp.product?.price || 0) * (pp.quantity || 0), 0);
+  const projectServicesTotal = (data?.services || []).reduce((sum: number, ps: any) => 
+    sum + (ps.service?.price || 0) * (Math.max(0.1, Number(ps.quantity) || 1)), 0);
+  const projectGrandTotal = projectProductsTotal + projectServicesTotal;
 
   // Resolve absolute URL for uploaded files served from backend (/uploads/*)
   const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:3001/api';
@@ -186,6 +195,25 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
     }
   };
 
+  const deleteComment = async (commentId: number) => {
+    if (!user) return;
+    if (!confirm('Ви впевнені, що хочете видалити цей коментар? Цю дію не можна скасувати.')) {
+      return;
+    }
+    try {
+      await CommentService.deleteProjectComment(commentId);
+      // Mark comment as deleted locally instead of removing it
+      setComments(prev => prev.map(c => 
+        c.comment_id === commentId 
+          ? { ...c, is_deleted: true, content: '', file_url: null, file_name: null, file_type: null }
+          : c
+      ));
+    } catch (e: any) {
+      // optionally show toast error
+      alert('Помилка видалення коментаря');
+    }
+  };
+
   const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -210,63 +238,69 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
       onClose={onClose}
       width="70vw"
       title={data?.name || 'Проєкт'}
-      actions={<GlassButton onClick={save} disabled={saving}>{saving ? 'Збереження…' : 'Зберегти'}</GlassButton>}
+      actions={
+        <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-2 xl:gap-4 w-full xl:w-auto">
+          {!!data && (
+            <>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                <label className="text-sm whitespace-nowrap">Воронка:</label>
+                <select
+                  className="glass-input rounded-md px-2 py-1 min-w-[160px] max-w-[300px] w-full sm:w-auto"
+                  value={data.funnel_id ?? ''}
+                  onChange={e => {
+                    const fid = Number(e.target.value) || null;
+                    let stageId = data.funnel_stage_id ?? null;
+                    const selected = funnels.find(f => f.funnel_id === fid!);
+                    if (fid && selected) {
+                      const firstStage = selected.stages?.[0]?.funnel_stage_id ?? null;
+                      const contains = !!selected.stages?.some(s => s.funnel_stage_id === stageId);
+                      stageId = contains ? stageId : firstStage;
+                    } else {
+                      stageId = null;
+                    }
+                    setData({ ...data, funnel_id: fid, funnel_stage_id: stageId });
+                  }}
+                >
+                  <option value="">—</option>
+                  {funnels.map(f => (
+                    <option key={f.funnel_id} value={f.funnel_id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                <label className="text-sm whitespace-nowrap">Етап:</label>
+                <select
+                  className="glass-input rounded-md px-2 py-1 min-w-[160px] max-w-[300px] w-full sm:w-auto"
+                  value={data.funnel_stage_id ?? ''}
+                  onChange={e => setData({ ...data, funnel_stage_id: Number(e.target.value) || null })}
+                  disabled={!data.funnel_id}
+                >
+                  <option value="">—</option>
+                  {funnels.find(f => f.funnel_id === data.funnel_id)?.stages?.map(s => (
+                    <option key={s.funnel_stage_id} value={s.funnel_stage_id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+          <GlassButton onClick={save} disabled={saving || !data}>{saving ? 'Збереження…' : 'Зберегти'}</GlassButton>
+        </div>
+      }
     >
       {loading && <div>Завантаження...</div>}
       {error && <div className="text-red-400 mb-3">{error}</div>}
       {!!data && (
-  <div className="space-y-4">
+        <div className="space-y-4">
           <div className="lg:flex gap-4">
             {/* Left sidebar with project meta as a single element */}
             <div className="lg:w-[300px] lg:flex-shrink-0">
               <GlassCard className="p-4 rounded-xl">
                 <div className="space-y-6">
-                {/* Funnel */}
-                <div className="space-y-2 bg-white/5 border border-white/10 rounded-lg p-3 transition-colors hover:bg-white/10">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold">Воронка</div>
-                  </div>
-                  <div className="space-y-2">
-                    <select
-                      className="w-full glass-input rounded-xl px-3 py-2"
-                      value={data.funnel_id ?? ''}
-                      onChange={e => {
-                        const fid = Number(e.target.value) || null;
-                        let stageId = data.funnel_stage_id ?? null;
-                        const selected = funnels.find(f => f.funnel_id === fid!);
-                        if (fid && selected) {
-                          const firstStage = selected.stages?.[0]?.funnel_stage_id ?? null;
-                          const contains = !!selected.stages?.some(s => s.funnel_stage_id === stageId);
-                          stageId = contains ? stageId : firstStage;
-                        } else {
-                          stageId = null;
-                        }
-                        setData({ ...data, funnel_id: fid, funnel_stage_id: stageId });
-                      }}
-                    >
-                      <option value="">—</option>
-                      {funnels.map(f => (
-                        <option key={f.funnel_id} value={f.funnel_id}>{f.name}</option>
-                      ))}
-                    </select>
-                    <select
-                      className="w-full glass-input rounded-xl px-3 py-2"
-                      value={data.funnel_stage_id ?? ''}
-                      onChange={e => setData({ ...data, funnel_stage_id: Number(e.target.value) || null })}
-                      disabled={!data.funnel_id}
-                    >
-                      <option value="">— Етап —</option>
-                      {funnels.find(f => f.funnel_id === data.funnel_id)?.stages?.map(s => (
-                        <option key={s.funnel_stage_id} value={s.funnel_stage_id}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
                 {/* Counterparty */}
                 <div className="space-y-2 bg-white/5 border border-white/10 rounded-lg p-3 transition-colors hover:bg-white/10">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold">Контрагент</div>
-                    <GlassIconButton aria-label="Редагувати контрагента" onClick={()=>setEditCounterparty(v=>!v)}>
+                    <GlassIconButton aria-label="Редагувати контрагента" onClick={() => setEditCounterparty(v => !v)}>
                       {editCounterparty ? '✓' : '✎'}
                     </GlassIconButton>
                   </div>
@@ -274,7 +308,7 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
                     <select
                       className="w-full glass-input rounded-xl px-3 py-2"
                       value={data.counterparty_id ?? ''}
-                      onChange={e=>setData({ ...data, counterparty_id: Number(e.target.value) || null })}
+                      onChange={e => setData({ ...data, counterparty_id: Number(e.target.value) || null })}
                     >
                       <option value="">—</option>
                       {counterparties.map(c => (
@@ -294,7 +328,7 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
                 <div className="space-y-2 bg-white/5 border border-white/10 rounded-lg p-3 transition-colors hover:bg-white/10">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold">Головний менеджер</div>
-                    <GlassIconButton aria-label="Редагувати головного менеджера" onClick={()=>setEditMainManager(v=>!v)}>
+                    <GlassIconButton aria-label="Редагувати головного менеджера" onClick={() => setEditMainManager(v => !v)}>
                       {editMainManager ? '✓' : '✎'}
                     </GlassIconButton>
                   </div>
@@ -302,7 +336,7 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
                     <select
                       className="w-full glass-input rounded-xl px-3 py-2"
                       value={data.main_responsible_manager_id ?? ''}
-                      onChange={e=>setData({ ...data, main_responsible_manager_id: Number(e.target.value) || null })}
+                      onChange={e => setData({ ...data, main_responsible_manager_id: Number(e.target.value) || null })}
                     >
                       <option value="">—</option>
                       {managers.map(m => (
@@ -312,60 +346,6 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
                   ) : (
                     <div className="text-sm opacity-85">{data.main_responsible_manager ? `${data.main_responsible_manager.first_name} ${data.main_responsible_manager.last_name}` : '—'}</div>
                   )}
-                </div>
-
-                {/* Secondary managers */}
-                <div className="space-y-2 bg-white/5 border border-white/10 rounded-lg p-3 transition-colors hover:bg-white/10">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold">Додаткові менеджери</div>
-                    <GlassIconButton aria-label="Редагувати додаткових менеджерів" onClick={()=>setEditSecondaryManagers(v=>!v)}>
-                      {editSecondaryManagers ? '✓' : '✎'}
-                    </GlassIconButton>
-                  </div>
-                  <div className="space-y-2">
-                    {editSecondaryManagers && (
-                      <div className="flex gap-2">
-                        <select
-                          className="flex-1 glass-input rounded-xl px-3 py-2"
-                          onChange={e=>{
-                            const id = Number(e.target.value);
-                            if (!id) return;
-                            const list = Array.isArray(data.secondary_responsible_manager_ids) ? data.secondary_responsible_manager_ids : (data.secondary_responsible_managers?.map((x:any)=> (x?.manager?.manager_id ?? x?.manager_id)) || []);
-                            if (!list.includes(id)) setData({ ...data, secondary_responsible_manager_ids: [...list, id] });
-                            e.currentTarget.selectedIndex = 0;
-                          }}
-                        >
-                          <option value="">Додати менеджера…</option>
-                          {managers.map(m => (
-                            <option key={m.manager_id} value={m.manager_id}>{`${m.first_name} ${m.last_name}`}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    <div className="space-y-1">
-                      {(() => {
-                        const list = (Array.isArray(data.secondary_responsible_manager_ids) && data.secondary_responsible_manager_ids.length)
-                          ? data.secondary_responsible_manager_ids
-                          : (data.secondary_responsible_managers?.map((x:any)=> (x?.manager?.manager_id ?? x?.manager_id)) || []);
-                        const nameOf = (id:number) => {
-                          const m = managers.find(mm=>mm.manager_id===id);
-                          return m ? `${m.first_name} ${m.last_name}` : `#${id}`;
-                        };
-                        if (!list.length) return <div className="text-sm opacity-60">—</div>;
-                        return list.map((id:number) => (
-                          <div key={id} className="flex items-center justify-between text-sm">
-                            <span>{nameOf(id)}</span>
-                            {editSecondaryManagers && (
-                              <GlassIconButton aria-label="Прибрати менеджера" onClick={()=>{
-                                const arr = list.filter((x:number)=>x!==id);
-                                setData({ ...data, secondary_responsible_manager_ids: arr });
-                              }}>✕</GlassIconButton>
-                            )}
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  </div>
                 </div>
 
                 {/* Forecast */}
@@ -406,6 +386,48 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
                     <div className="text-sm opacity-85 whitespace-pre-wrap">{data.description?.trim() ? data.description : '—'}</div>
                   )}
                 </div>
+
+                {/* Project totals */}
+                <div className="space-y-2 bg-white/5 border border-white/10 rounded-lg p-3">
+                  <div className="text-sm font-semibold">Суми по проекту</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="opacity-85">Товари ({data?.products?.length || 0}):</span>
+                      <span className={`font-medium ${projectProductsTotal > 0 ? 'text-green-400' : 'opacity-60'}`}>
+                        {fmtMoney(projectProductsTotal)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="opacity-85">Послуги ({data?.services?.length || 0}):</span>
+                      <span className={`font-medium ${projectServicesTotal > 0 ? 'text-green-400' : 'opacity-60'}`}>
+                        {fmtMoney(projectServicesTotal)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm border-t border-white/10 pt-1 mt-2">
+                      <span className="font-semibold">Загалом:</span>
+                      <span className={`font-bold ${projectGrandTotal > 0 ? 'text-green-300' : 'opacity-60'}`}>
+                        {fmtMoney(projectGrandTotal)}
+                      </span>
+                    </div>
+                    {data.forecast_amount && data.forecast_amount > 0 && (
+                      <div className="flex justify-between text-xs opacity-75 pt-1">
+                        <span>Прогноз:</span>
+                        <span>{fmtMoney(data.forecast_amount)}</span>
+                      </div>
+                    )}
+                    {data.forecast_amount && data.forecast_amount > 0 && projectGrandTotal > 0 && (
+                      <div className="flex justify-between text-xs pt-1">
+                        <span>Виконання:</span>
+                        <span className={`font-medium ${
+                          projectGrandTotal >= data.forecast_amount ? 'text-green-400' : 
+                          projectGrandTotal >= data.forecast_amount * 0.8 ? 'text-yellow-400' : 'text-red-400'
+                        }`}>
+                          {((projectGrandTotal / data.forecast_amount) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 </div>
               </GlassCard>
             </div>
@@ -438,32 +460,54 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
                     {comments.length === 0 && <div className="text-sm opacity-70">Коментарів поки немає.</div>}
                     <div className="space-y-3">
                       {comments.map(c => (
-                        <div key={c.comment_id} className="bg-white/5 rounded-lg p-2 border border-white/10">
-                          <div className="text-xs opacity-70 mb-1">
-                            {(c.manager?.first_name||'') + ' ' + (c.manager?.last_name||'')} • {new Date(c.created_at).toLocaleString('uk-UA')}
-                          </div>
-                          {c.content && <div className="text-sm whitespace-pre-wrap mb-2">{c.content}</div>}
-                          {c.file_url && (
-                            <div className="flex items-center gap-2 bg-black/20 rounded-md p-2 border border-white/10">
-                              {c.file_type?.startsWith('image/') ? (
-                                <button
-                                  type="button"
-                                  onClick={()=> downloadByUrl(fileUrlAbs(c.file_url!), c.file_name || undefined)}
-                                  className="flex items-center gap-2 text-left"
-                                >
-                                  <img src={fileUrlAbs(c.file_url)} alt={c.file_name || 'attachment'} className="w-16 h-16 object-cover rounded" />
-                                  <span className="text-xs underline truncate max-w-[200px]">{c.file_name || 'Зображення'}</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={()=> downloadByUrl(fileUrlAbs(c.file_url!), c.file_name || undefined)}
-                                  className="text-xs underline truncate text-left"
-                                >
-                                  {c.file_name || 'Файл'}
-                                </button>
-                              )}
+                        <div key={c.comment_id} className={`bg-white/5 rounded-lg p-2 border border-white/10 ${c.is_deleted ? 'opacity-60' : ''}`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="text-xs opacity-70">
+                              {(c.manager?.first_name||'') + ' ' + (c.manager?.last_name||'')} • {new Date(c.created_at).toLocaleString('uk-UA')}
                             </div>
+                            {/* Show delete button only for own comments and if not already deleted */}
+                            {!c.is_deleted && user && Number(user.manager_id) === Number(c.manager?.manager_id) && (
+                              <GlassIconButton
+                                aria-label="Видалити коментар"
+                                title="Видалити коментар"
+                                onClick={() => deleteComment(c.comment_id)}
+                                size="sm"
+                                className="opacity-60 hover:opacity-100 text-red-400 hover:text-red-300"
+                              >
+                                🗑️
+                              </GlassIconButton>
+                            )}
+                          </div>
+                          {c.is_deleted ? (
+                            <div className="text-sm italic opacity-60 bg-white/3 rounded-md px-2 py-1 border border-white/5">
+                              <span className="text-xs">💬</span> Повідомлення було видалено
+                            </div>
+                          ) : (
+                            <>
+                              {c.content && <div className="text-sm whitespace-pre-wrap mb-2">{c.content}</div>}
+                              {c.file_url && (
+                                <div className="flex items-center gap-2 bg-black/20 rounded-md p-2 border border-white/10">
+                                  {c.file_type?.startsWith('image/') ? (
+                                    <button
+                                      type="button"
+                                      onClick={()=> downloadByUrl(fileUrlAbs(c.file_url!), c.file_name || undefined)}
+                                      className="flex items-center gap-2 text-left"
+                                    >
+                                      <img src={fileUrlAbs(c.file_url)} alt={c.file_name || 'attachment'} className="w-16 h-16 object-cover rounded" />
+                                      <span className="text-xs underline truncate max-w-[200px]">{c.file_name || 'Зображення'}</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={()=> downloadByUrl(fileUrlAbs(c.file_url!), c.file_name || undefined)}
+                                      className="text-xs underline truncate text-left"
+                                    >
+                                      {c.file_name || 'Файл'}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       ))}
@@ -925,18 +969,8 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
         {saleError && <div className="text-sm text-red-400">{saleError}</div>}
       </div>
     </GlassModal>
-  <TaskViewModal open={taskViewOpen} onClose={()=> setTaskViewOpen(false)} task={activeTask} />
-    <SubProjectDrawer
-      open={subDrawerOpen}
-      subprojectId={activeSubId}
-      onClose={()=> setSubDrawerOpen(false)}
-      onSaved={()=>{
-        // refresh project to reflect possible changes
-        if (projectId) {
-          ProjectsService.getById(projectId).then(setData).catch(()=>{});
-        }
-      }}
-    />
+    <SubProjectDrawer open={subDrawerOpen} subprojectId={activeSubId} onClose={() => setSubDrawerOpen(false)} onSaved={onSaved} />
+    <TaskViewModal open={taskViewOpen} task={activeTask} onClose={() => setTaskViewOpen(false)} />
     </>
   );
 }

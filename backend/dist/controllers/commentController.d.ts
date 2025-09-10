@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 export declare class CommentController {
+    static deleteComment(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     static getProjectComments(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     static getProjectCommentById(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     static createProjectComment(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

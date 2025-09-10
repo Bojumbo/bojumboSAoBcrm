@@ -51,7 +51,7 @@ export default function GlassDrawer({ open, onClose, width = '70vw', title, acti
       {/* Right-aligned container and panel */}
       <div className="absolute inset-0 flex justify-end items-stretch pointer-events-none">
         <div
-          className={`h-full glass glass-ultra glass-interactive border-l border-white/20 pointer-events-auto`}
+          className={`h-full glass glass-ultra glass-interactive border-l border-white/20 pointer-events-auto flex flex-col`}
           style={{
             width: typeof width === 'number' ? `${width}px` : width,
             maxWidth: '100vw',
@@ -65,14 +65,14 @@ export default function GlassDrawer({ open, onClose, width = '70vw', title, acti
           <div className="glass-lens"></div>
           <div className="glass-tint"></div>
           <div className="glass-reflect"></div>
-          <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-4 border-b border-white/10 gap-3">
             <div className="text-lg font-semibold">{title}</div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               {actions}
-              <button onClick={onClose} className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20">Закрити</button>
+              <button onClick={onClose} className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 whitespace-nowrap">Закрити</button>
             </div>
           </div>
-          <div className="p-4 overflow-auto h-[calc(100%-56px)] glass-scrollbar">
+          <div className="p-4 overflow-auto flex-1 glass-scrollbar">
             {children}
           </div>
         </div>

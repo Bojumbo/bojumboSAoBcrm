@@ -149,6 +149,10 @@ export class SubProjectService {
             updateData.status = data.status;
         if (data.cost !== undefined)
             updateData.cost = data.cost;
+        if (data.funnel_id !== undefined)
+            updateData.funnel_id = data.funnel_id;
+        if (data.funnel_stage_id !== undefined)
+            updateData.funnel_stage_id = data.funnel_stage_id;
         const subProject = await prisma.subProject.update({
             where: { subproject_id: id },
             data: updateData

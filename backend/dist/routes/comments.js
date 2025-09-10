@@ -4,6 +4,8 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = Router();
 // All routes require authentication
 router.use(authenticateToken);
+// General comment operations
+router.delete('/:commentId', CommentController.deleteComment);
 // Project Comments
 router.get('/projects/:projectId', CommentController.getProjectComments);
 router.get('/projects/:projectId/:commentId', CommentController.getProjectCommentById);

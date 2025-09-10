@@ -57,11 +57,16 @@ export class TaskService {
         });
     }
     static async updateStatus(id, status) {
-        // cast to any to avoid TS mismatch if prisma client not regenerated yet
-        return await prisma.task.update({
-            where: { task_id: id },
-            data: { status }
-        });
+        try {
+            // Prefer normal client if available
+            return await prisma.task.update({ where: { task_id: id }, data: { status } });
+        }
+        catch {
+            // Fallback to raw query if client types/engine mismatch on Windows
+            await prisma.$executeRawUnsafe(`UPDATE tasks SET status = $1 WHERE task_id = $2`, status, id);
+            const updated = await prisma.task.findUnique({ where: { task_id: id } });
+            return updated;
+        }
     }
     static async delete(id) {
         try {

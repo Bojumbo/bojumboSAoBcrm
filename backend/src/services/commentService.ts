@@ -59,10 +59,21 @@ export class CommentService {
     }) as unknown as ProjectCommentWithRelations;
   }
 
-  static async createProjectComment(data: CreateProjectCommentInput): Promise<ProjectComment> {
+  static async createProjectComment(data: CreateProjectCommentInput): Promise<ProjectCommentWithRelations> {
     return await prisma.projectComment.create({
-      data
-    });
+      data,
+      include: {
+        manager: {
+          select: {
+            manager_id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    }) as unknown as ProjectCommentWithRelations;
   }
 
   static async updateProjectComment(commentId: number, data: Partial<CreateProjectCommentInput>): Promise<ProjectComment | null> {
@@ -74,8 +85,9 @@ export class CommentService {
 
   static async deleteProjectComment(commentId: number): Promise<boolean> {
     try {
-      await prisma.projectComment.delete({
-        where: { comment_id: commentId }
+      await prisma.projectComment.update({
+        where: { comment_id: commentId },
+        data: { is_deleted: true }
       });
       return true;
     } catch {
@@ -121,10 +133,21 @@ export class CommentService {
     }) as unknown as SubProjectCommentWithRelations;
   }
 
-  static async createSubProjectComment(data: CreateSubProjectCommentInput): Promise<SubProjectComment> {
+  static async createSubProjectComment(data: CreateSubProjectCommentInput): Promise<SubProjectCommentWithRelations> {
     return await prisma.subProjectComment.create({
-      data
-    });
+      data,
+      include: {
+        manager: {
+          select: {
+            manager_id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    }) as unknown as SubProjectCommentWithRelations;
   }
 
   static async updateSubProjectComment(commentId: number, data: Partial<CreateSubProjectCommentInput>): Promise<SubProjectComment | null> {
@@ -136,8 +159,9 @@ export class CommentService {
 
   static async deleteSubProjectComment(commentId: number): Promise<boolean> {
     try {
-      await prisma.subProjectComment.delete({
-        where: { comment_id: commentId }
+      await prisma.subProjectComment.update({
+        where: { comment_id: commentId },
+        data: { is_deleted: true }
       });
       return true;
     } catch {

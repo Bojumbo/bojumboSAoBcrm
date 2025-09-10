@@ -77,8 +77,24 @@ export class ProjectService {
         });
         if (!project)
             return null;
-        // Normalize products (ensure numeric quantity)
         const projAny = project;
+        // Convert main project forecast amount
+        projAny.forecast_amount = projAny.forecast_amount.toNumber();
+        // Convert cost in subprojects to number
+        if (projAny.subprojects && projAny.subprojects.length > 0) {
+            projAny.subprojects = projAny.subprojects.map((sp) => ({
+                ...sp,
+                cost: sp.cost.toNumber()
+            }));
+        }
+        // Convert total_price in sales to number
+        if (projAny.sales && projAny.sales.length > 0) {
+            projAny.sales = projAny.sales.map((s) => ({
+                ...s,
+                total_price: s.total_price ? s.total_price.toNumber() : 0
+            }));
+        }
+        // Normalize products (ensure numeric quantity)
         if (projAny?.products?.length) {
             projAny.products = projAny.products.map((pp) => ({
                 ...pp,

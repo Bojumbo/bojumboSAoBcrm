@@ -18,12 +18,12 @@ interface CreateSubProjectCommentInput {
 export declare class CommentService {
     static getProjectComments(projectId: number): Promise<ProjectCommentWithRelations[]>;
     static getProjectCommentById(commentId: number): Promise<ProjectCommentWithRelations | null>;
-    static createProjectComment(data: CreateProjectCommentInput): Promise<ProjectComment>;
+    static createProjectComment(data: CreateProjectCommentInput): Promise<ProjectCommentWithRelations>;
     static updateProjectComment(commentId: number, data: Partial<CreateProjectCommentInput>): Promise<ProjectComment | null>;
     static deleteProjectComment(commentId: number): Promise<boolean>;
     static getSubProjectComments(subprojectId: number): Promise<SubProjectCommentWithRelations[]>;
     static getSubProjectCommentById(commentId: number): Promise<SubProjectCommentWithRelations | null>;
-    static createSubProjectComment(data: CreateSubProjectCommentInput): Promise<SubProjectComment>;
+    static createSubProjectComment(data: CreateSubProjectCommentInput): Promise<SubProjectCommentWithRelations>;
     static updateSubProjectComment(commentId: number, data: Partial<CreateSubProjectCommentInput>): Promise<SubProjectComment | null>;
     static deleteSubProjectComment(commentId: number): Promise<boolean>;
 }
