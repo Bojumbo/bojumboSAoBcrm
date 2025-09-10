@@ -23,7 +23,9 @@ import {
   ProjectManager as PrismaProjectManager,
   CounterpartyType as PrismaCounterpartyType,
   SaleProduct as PrismaSaleProduct,
-  SaleService as PrismaSaleService
+  SaleService as PrismaSaleService,
+  SubProjectFunnel as PrismaSubProjectFunnel,
+  SubProjectFunnelStage as PrismaSubProjectFunnelStage
 } from '@prisma/client';
 
 // Re-exporting enums if they are used elsewhere
@@ -57,6 +59,8 @@ export type ProjectManager = PrismaProjectManager;
 export type CounterpartyType = PrismaCounterpartyType;
 export type SaleStatusType = PrismaSaleStatusType;
 export type SubProjectStatusType = PrismaSubProjectStatusType;
+export type SubProjectFunnel = PrismaSubProjectFunnel;
+export type SubProjectFunnelStage = PrismaSubProjectFunnelStage;
 
 
 // Extended types with relationships for deep data fetching

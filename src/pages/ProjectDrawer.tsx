@@ -102,7 +102,6 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
   const [editSecondaryManagers, setEditSecondaryManagers] = useState(false);
   const [editForecast, setEditForecast] = useState(false);
   const [editDescription, setEditDescription] = useState(false);
-  const [editFunnel, setEditFunnel] = useState(false);
 
   useEffect(() => {
     if (!open || !projectId) return;
@@ -135,7 +134,6 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
   setEditSecondaryManagers(false);
   setEditForecast(false);
   setEditDescription(false);
-  setEditFunnel(false);
       } catch (e: any) {
         setError(e?.message || 'Помилка завантаження');
       } finally {
@@ -227,65 +225,42 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
                 <div className="space-y-2 bg-white/5 border border-white/10 rounded-lg p-3 transition-colors hover:bg-white/10">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold">Воронка</div>
-                    <GlassIconButton aria-label="Редагувати воронку" onClick={()=>setEditFunnel(v=>!v)}>
-                      {editFunnel ? '✓' : '✎'}
-                    </GlassIconButton>
                   </div>
-                  {editFunnel ? (
-                    <div className="space-y-2">
-                      <select
-                        className="w-full glass-input rounded-xl px-3 py-2"
-                        value={data.funnel_id ?? ''}
-                        onChange={e=>{
-                          const fid = Number(e.target.value) || null;
-                          // If funnel changed, adjust stage to first stage of selected funnel
-                          let stageId = data.funnel_stage_id ?? null;
-                          const selected = funnels.find(f=>f.funnel_id===fid!);
-                          if (fid && selected) {
-                            const firstStage = selected.stages?.[0]?.funnel_stage_id ?? null;
-                            // if current stage isn't in selected funnel, reset to first
-                            const contains = !!selected.stages?.some(s=> s.funnel_stage_id === stageId);
-                            stageId = contains ? stageId : firstStage;
-                          } else {
-                            stageId = null;
-                          }
-                          setData({ ...data, funnel_id: fid, funnel_stage_id: stageId });
-                        }}
-                      >
-                        <option value="">—</option>
-                        {funnels.map(f => (
-                          <option key={f.funnel_id} value={f.funnel_id}>{f.name}</option>
-                        ))}
-                      </select>
-                      <select
-                        className="w-full glass-input rounded-xl px-3 py-2"
-                        value={data.funnel_stage_id ?? ''}
-                        onChange={e=> setData({ ...data, funnel_stage_id: Number(e.target.value) || null })}
-                        disabled={!data.funnel_id}
-                      >
-                        <option value="">— Етап —</option>
-                        {funnels.find(f=>f.funnel_id===data.funnel_id)?.stages?.map(s => (
-                          <option key={s.funnel_stage_id} value={s.funnel_stage_id}>{s.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    <div className="text-sm opacity-85 space-y-1">
-                      <div>
-                        {(() => {
-                          const f = funnels.find(ff=>ff.funnel_id===data.funnel_id);
-                          return f?.name || '—';
-                        })()}
-                      </div>
-                      <div className="opacity-80">
-                        {(() => {
-                          const f = funnels.find(ff=>ff.funnel_id===data.funnel_id);
-                          const st = f?.stages?.find(s=> s.funnel_stage_id === data.funnel_stage_id);
-                          return st?.name || '—';
-                        })()}
-                      </div>
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <select
+                      className="w-full glass-input rounded-xl px-3 py-2"
+                      value={data.funnel_id ?? ''}
+                      onChange={e => {
+                        const fid = Number(e.target.value) || null;
+                        let stageId = data.funnel_stage_id ?? null;
+                        const selected = funnels.find(f => f.funnel_id === fid!);
+                        if (fid && selected) {
+                          const firstStage = selected.stages?.[0]?.funnel_stage_id ?? null;
+                          const contains = !!selected.stages?.some(s => s.funnel_stage_id === stageId);
+                          stageId = contains ? stageId : firstStage;
+                        } else {
+                          stageId = null;
+                        }
+                        setData({ ...data, funnel_id: fid, funnel_stage_id: stageId });
+                      }}
+                    >
+                      <option value="">—</option>
+                      {funnels.map(f => (
+                        <option key={f.funnel_id} value={f.funnel_id}>{f.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="w-full glass-input rounded-xl px-3 py-2"
+                      value={data.funnel_stage_id ?? ''}
+                      onChange={e => setData({ ...data, funnel_stage_id: Number(e.target.value) || null })}
+                      disabled={!data.funnel_id}
+                    >
+                      <option value="">— Етап —</option>
+                      {funnels.find(f => f.funnel_id === data.funnel_id)?.stages?.map(s => (
+                        <option key={s.funnel_stage_id} value={s.funnel_stage_id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 {/* Counterparty */}
                 <div className="space-y-2 bg-white/5 border border-white/10 rounded-lg p-3 transition-colors hover:bg-white/10">
@@ -307,7 +282,11 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
                       ))}
                     </select>
                   ) : (
-                    <div className="text-sm opacity-85">{data.counterparty?.name || '—'}</div>
+                    <div className="text-sm opacity-85">
+                      <div>{data.counterparty?.name || '—'}</div>
+                      {data.counterparty?.phone && <a href={`tel:${data.counterparty.phone}`} className="text-xs hover:underline">{data.counterparty.phone}</a>}
+                      {data.counterparty?.email && <a href={`mailto:${data.counterparty.email}`} className="text-xs hover:underline ml-2">{data.counterparty.email}</a>}
+                    </div>
                   )}
                 </div>
 
@@ -432,7 +411,7 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
             </div>
 
             {/* Right content with tabs */}
-            <div className="flex-1 min-w-0 space-y-4">
+            <div className="flex-1 min-w-0 flex flex-col space-y-4">
               {/* Tabs */}
               <div className="flex gap-2 flex-wrap">
                 {[
@@ -454,8 +433,8 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
 
               {/* Tab panels */}
               {activeTab === 'comments' && (
-                <div className="space-y-3">
-                  <div className="glass glass-scroll-y p-3 rounded-xl max-h-[50vh] min-h-[160px] glass-scrollbar">
+                <div className="flex flex-col space-y-3 flex-grow">
+                  <div className="glass glass-scroll-y p-3 rounded-xl flex-grow glass-scrollbar">
                     {comments.length === 0 && <div className="text-sm opacity-70">Коментарів поки немає.</div>}
                     <div className="space-y-3">
                       {comments.map(c => (

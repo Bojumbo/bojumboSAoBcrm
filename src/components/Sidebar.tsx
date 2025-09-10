@@ -14,6 +14,7 @@ function Sidebar() {
           <nav className="space-y-1 text-sm">
             <NavLink to="/dashboard" label="Дашборд" />
             <NavLink to="/projects" label="Проєкти" />
+            <NavLink to="/subprojects" label="Підпроєкти" />
             <NavLink to="/counterparties" label="Контрагенти" />
             <NavLink to="/products" label="Товари" />
             <NavLink to="/services" label="Послуги" />

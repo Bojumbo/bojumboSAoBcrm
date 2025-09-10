@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import GlassCard from '../components/GlassCard';
 import { useAuth } from '../context/AuthContext';
 import FunnelsSettings from './Settings/FunnelsSettings';
+import SubProjectFunnelsSettings from './Settings/SubProjectFunnelsSettings';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -15,7 +16,7 @@ export default function Settings() {
     }
   }, [user]);
 
-  const [tab, setTab] = useState<'profile'|'funnels'>('profile');
+  const [tab, setTab] = useState<'profile'|'funnels'|'subProjectFunnels'>('profile');
 
   return (
     <div className="space-y-4">
@@ -24,7 +25,8 @@ export default function Settings() {
           <div className="text-xl font-semibold">Налаштування</div>
           <div className="flex gap-2 text-sm">
             <button className={`px-3 py-1.5 rounded-lg ${tab==='profile'?'bg-white/20':'bg-white/10 hover:bg-white/20'}`} onClick={()=>setTab('profile')}>Профіль</button>
-            <button className={`px-3 py-1.5 rounded-lg ${tab==='funnels'?'bg-white/20':'bg-white/10 hover:bg-white/20'}`} onClick={()=>setTab('funnels')}>Воронки</button>
+            <button className={`px-3 py-1.5 rounded-lg ${tab==='funnels'?'bg-white/20':'bg-white/10 hover:bg-white/20'}`} onClick={()=>setTab('funnels')}>Воронки проектів</button>
+            <button className={`px-3 py-1.5 rounded-lg ${tab==='subProjectFunnels'?'bg-white/20':'bg-white/10 hover:bg-white/20'}`} onClick={()=>setTab('subProjectFunnels')}>Воронки підпроектів</button>
           </div>
         </div>
       </GlassCard>
@@ -44,13 +46,12 @@ export default function Settings() {
             </div>
             <div className="text-xs opacity-70">Редагування профілю поки недоступне.</div>
           </div>
-  </GlassCard>
+        </GlassCard>
       </div>
       )}
 
-      {tab === 'funnels' && (
-        <FunnelsSettings />
-      )}
+      {tab === 'funnels' && <FunnelsSettings />}
+      {tab === 'subProjectFunnels' && <SubProjectFunnelsSettings />}
     </div>
   );
 }

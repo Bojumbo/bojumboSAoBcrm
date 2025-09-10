@@ -175,12 +175,16 @@ export class SubProjectService {
         description?: string | null;
         status?: string | null;
         cost?: number;
+        funnel_id?: number | null;
+        funnel_stage_id?: number | null;
     } = {};
 
     if (data.name !== undefined) updateData.name = data.name;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.cost !== undefined) updateData.cost = data.cost;
+    if (data.funnel_id !== undefined) updateData.funnel_id = data.funnel_id;
+    if (data.funnel_stage_id !== undefined) updateData.funnel_stage_id = data.funnel_stage_id;
 
     const subProject = await prisma.subProject.update({
       where: { subproject_id: id },

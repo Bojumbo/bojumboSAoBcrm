@@ -1,6 +1,10 @@
 import api from '../api/httpClient';
 
 export const SubProjectsService = {
+  async getAll(params?: any): Promise<any> {
+    const { data } = await api.get('/subprojects', { params });
+    return data.data ?? data;
+  },
   async getById(id: number): Promise<any> {
     const { data } = await api.get(`/subprojects/${id}`);
     return data.data ?? data;

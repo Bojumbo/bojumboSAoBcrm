@@ -21,6 +21,8 @@ export default function Counterparties() {
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<'INDIVIDUAL' | 'LEGAL_ENTITY' | ''>('');
   const [newManagerId, setNewManagerId] = useState<number | ''>('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -57,6 +59,8 @@ export default function Counterparties() {
           <div className="space-y-2">
             <div className="flex gap-2 flex-wrap">
               <input className="glass-input rounded-xl px-3 py-2 min-w-[240px]" placeholder="Назва" value={newName} onChange={e=> setNewName(e.target.value)} />
+              <input className="glass-input rounded-xl px-3 py-2 min-w-[240px]" placeholder="Телефон" value={newPhone} onChange={e=> setNewPhone(e.target.value)} />
+              <input className="glass-input rounded-xl px-3 py-2 min-w-[240px]" placeholder="Email" value={newEmail} onChange={e=> setNewEmail(e.target.value)} />
               <select className="glass-input rounded-xl px-3 py-2" value={newType} onChange={e=> setNewType(e.target.value as any)}>
                 <option value="">— Тип —</option>
                 <option value="INDIVIDUAL">Фіз. особа</option>
@@ -73,9 +77,9 @@ export default function Counterparties() {
               <GlassButton disabled={!newName || !newType || busy} onClick={async ()=>{
                 try {
                   setBusy(true);
-                  const created = await CounterpartiesService.create({ name: newName.trim(), counterparty_type: newType as any, responsible_manager_id: newManagerId || null });
+                  const created = await CounterpartiesService.create({ name: newName.trim(), counterparty_type: newType as any, responsible_manager_id: newManagerId || null, phone: newPhone.trim(), email: newEmail.trim() });
                   setItems(prev => [created, ...prev]);
-                  setAddOpen(false); setNewName(''); setNewType(''); setNewManagerId('');
+                  setAddOpen(false); setNewName(''); setNewType(''); setNewManagerId(''); setNewPhone(''); setNewEmail('');
                 } catch (e:any) {
                   setError(e?.response?.data?.error || e?.message || 'Помилка створення');
                 } finally {
@@ -112,8 +116,10 @@ export default function Counterparties() {
               <div key={it.counterparty_id} className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm truncate">{it.name}</div>
-                  <div className="text-xs opacity-70">
-                    {(it.counterparty_type === 'INDIVIDUAL' && 'Фіз. особа') || (it.counterparty_type === 'LEGAL_ENTITY' && 'Юр. особа') || (it.counterparty_type || '—')}
+                  <div className="text-xs opacity-70 flex items-center gap-2">
+                    <span>{(it.counterparty_type === 'INDIVIDUAL' && 'Фіз. особа') || (it.counterparty_type === 'LEGAL_ENTITY' && 'Юр. особа') || (it.counterparty_type || '—')}</span>
+                    {it.phone && <a href={`tel:${it.phone}`} className="hover:underline">{it.phone}</a>}
+                    {it.email && <a href={`mailto:${it.email}`} className="hover:underline">{it.email}</a>}
                     {it.responsible_manager ? ` • Менеджер: ${it.responsible_manager.first_name} ${it.responsible_manager.last_name}` : ''}
                   </div>
                 </div>

@@ -43,6 +43,8 @@ model Counterparty {
   name String
   counterparty_type CounterpartyType
   responsible_manager_id Int?
+  phone String?
+  email String?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -214,6 +216,32 @@ model FunnelStage {
   @@map("funnel_stages")
 }
 
+model SubProjectFunnel {
+  sub_project_funnel_id Int @id @default(autoincrement())
+  name String
+  created_at DateTime @default(now())
+
+  // Relationships
+  stages SubProjectFunnelStage[]
+  subprojects SubProject[]
+
+  @@map("sub_project_funnels")
+}
+
+model SubProjectFunnelStage {
+  sub_project_funnel_stage_id Int @id @default(autoincrement())
+  name String
+  sub_project_funnel_id Int
+  order Int
+  created_at DateTime @default(now())
+
+  // Relationships
+  funnel SubProjectFunnel @relation(fields: [sub_project_funnel_id], references: [sub_project_funnel_id], onDelete: Cascade)
+  subprojects SubProject[]
+
+  @@map("sub_project_funnel_stages")
+}
+
 model SubProjectStatusType {
   sub_project_status_id Int @id @default(autoincrement())
   name String
@@ -270,11 +298,15 @@ model SubProject {
   project_id Int
   status String?
   cost Decimal @db.Decimal(10, 2)
+  sub_project_funnel_id Int?
+  sub_project_funnel_stage_id Int?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   // Relationships
   project Project @relation(fields: [project_id], references: [project_id], onDelete: Cascade)
+  funnel SubProjectFunnel? @relation(fields: [sub_project_funnel_id], references: [sub_project_funnel_id])
+  funnel_stage SubProjectFunnelStage? @relation(fields: [sub_project_funnel_stage_id], references: [sub_project_funnel_stage_id])
   tasks Task[]
   comments SubProjectComment[]
   products SubProjectProduct[]

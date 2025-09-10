@@ -7,6 +7,8 @@ interface CounterpartyInput {
   name: string;
   counterparty_type: CounterpartyTypeEnum;
   responsible_manager_id?: number | null;
+  phone?: string | null;
+  email?: string | null;
 }
 
 export class CounterpartyService {

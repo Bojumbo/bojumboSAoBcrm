@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Projects from './pages/Projects';
+import SubProjects from './pages/SubProjects';
 import Counterparties from './pages/Counterparties';
 import Products from './pages/Products';
 import Services from './pages/Services';
@@ -31,6 +32,7 @@ function Shell() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
             <Route path="/projects" element={<Protected><Projects /></Protected>} />
+            <Route path="/subprojects" element={<Protected><SubProjects /></Protected>} />
             <Route path="/counterparties" element={<Protected><Counterparties /></Protected>} />
             <Route path="/products" element={<Protected><Products /></Protected>} />
             <Route path="/services" element={<Protected><Services /></Protected>} />
