@@ -241,4 +241,36 @@ export class ProjectController {
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }
+
+  static async getProducts(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Not authenticated'
+        });
+      }
+
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid ID'
+        });
+      }
+
+      const products = await ProjectService.getProducts(id);
+
+      res.json({
+        success: true,
+        data: products
+      });
+    } catch (error) {
+      console.error('Get project products error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
 }

@@ -39,11 +39,15 @@ if (!config.jwt.secret) {
 app.use('/uploads', express.static(path.join(process.cwd(), config.upload.dir)));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    message: 'CRM Backend is running'
+  });
 });
 
-// API routes
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/managers', managerRoutes);
 app.use('/api/products', productRoutes);
@@ -84,6 +88,6 @@ const PORT = config.port;
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
+  console.log(`Health check: http://localhost:${PORT}/api/health`);
   console.log(`Upload directory: ${config.upload.dir}`);
 });

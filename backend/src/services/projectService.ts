@@ -246,6 +246,19 @@ export class ProjectService {
       return false;
     }
   }
+
+  static async getProducts(projectId: number) {
+    return await prisma.projectProduct.findMany({
+      where: { project_id: projectId },
+      include: {
+        product: {
+          include: {
+            unit: true
+          }
+        }
+      }
+    });
+  }
 }
 
 // Separate SubProjectService for clarity

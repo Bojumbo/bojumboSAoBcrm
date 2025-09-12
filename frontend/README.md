@@ -36,29 +36,137 @@ npm run dev
 ```
 
 Додаток буде доступний за адресою: `http://localhost:3000`
-# or
-pnpm dev
-# or
-bun dev
+
+### Збірка для продакшну
+```bash
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Структура проекту
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+src/
+├── app/                    # Next.js App Router сторінки
+│   ├── dashboard/         # Сторінка панелі управління
+│   ├── projects/          # Сторінка проектів
+│   ├── subprojects/       # Сторінка підпроектів
+│   ├── sales/             # Сторінка продажів
+│   ├── tasks/             # Сторінка завдань
+│   ├── counterparties/    # Сторінка контрагентів
+│   ├── warehouse/         # Сторінка складу
+│   ├── products/          # Сторінка товарів
+│   ├── services/          # Сторінка послуг
+│   ├── settings/          # Сторінка налаштувань
+│   ├── login/            # Сторінка входу
+│   ├── layout.tsx        # Основний layout
+│   └── page.tsx          # Головна сторінка
+├── components/           # React компоненти
+│   ├── ui/              # Shadcn UI компоненти
+│   ├── Dashboard.tsx    # Компонент панелі управління
+│   ├── LoginPage.tsx    # Компонент сторінки входу
+│   ├── Sidebar.tsx      # Компонент сайдбару
+│   ├── DashboardLayout.tsx # Layout для внутрішніх сторінок
+│   └── PagePlaceholder.tsx # Компонент заглушки для сторінок
+├── contexts/            # React контексти
+│   └── AuthContext.tsx  # Контекст аутентифікації
+├── lib/                 # Бібліотеки та утиліти
+│   ├── api.ts          # API клієнт
+│   └── utils.ts        # Допоміжні функції
+├── types/              # TypeScript типи
+│   └── auth.ts         # Типи для аутентифікації
+└── middleware.ts       # Next.js middleware для захисту маршрутів
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Особливості
 
-## Learn More
+### Навігація
+- Responsive сайдбар з можливістю згортання
+- Мобільне меню з overlay
+- Активний стан для поточної сторінки
+- Швидка навігація між розділами
 
-To learn more about Next.js, take a look at the following resources:
+### Сторінки системи
+- **Dashboard** - Головна панель з статистикою та швидкими діями
+- **Проекти** - Управління проектами компанії
+- **Підпроекти** - Деталізація проектів на підпроекти
+- **Продажі** - Управління процесом продажів
+- **Завдання** - Система завдань для команди
+- **Контрагенти** - База клієнтів та партнерів
+- **Склад** - Управління товарними запасами
+- **Товари** - Каталог продукції
+- **Послуги** - Каталог послуг
+- **Налаштування** - Конфігурація системи
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Аутентифікація
+- JWT токени зберігаються в localStorage та cookies
+- Автоматичне перенаправлення неавторизованих користувачів
+- Middleware для захисту приватних маршрутів
+- Контекст React для управління станом аутентифікації
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Компоненти
+- Використання Shadcn UI для консистентного дизайну
+- Валідація форм за допомогою Zod
+- Responsive дизайн з Tailwind CSS
+- Доступність (accessibility) відповідно до стандартів
 
-## Deploy on Vercel
+### API інтеграція
+- Конфігурований Axios клієнт
+- Автоматичне додавання JWT токенів до запитів
+- Обробка помилок та неавторизованих запитів
+- Централізоване управління API ендпоінтами
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Маршрути
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `/` - Головна сторінка (редірект на `/login` або `/dashboard`)
+- `/login` - Сторінка входу
+- `/dashboard` - Панель управління (захищений маршрут)
+- `/projects` - Проекти (заглушка)
+- `/subprojects` - Підпроекти (заглушка)
+- `/sales` - Продажі (заглушка)
+- `/tasks` - Завдання (заглушка)
+- `/counterparties` - Контрагенти (заглушка)
+- `/warehouse` - Склад (заглушка)
+- `/products` - Товари (заглушка)
+- `/services` - Послуги (заглушка)
+- `/settings` - Налаштування (заглушка)
+
+## Команди
+
+```bash
+# Запуск в режимі розробки
+npm run dev
+
+# Збірка проекту
+npm run build
+
+# Запуск production сервера
+npm start
+
+# Перевірка ESLint
+npm run lint
+
+# Перевірка типів TypeScript
+npm run type-check
+```
+
+## Інтеграція з Backend
+
+Frontend підключається до backend API за адресою `http://localhost:3001/api`. 
+
+Основні ендпоінти:
+- `POST /auth/login` - Вхід в систему
+- `POST /auth/logout` - Вихід з системи  
+- `GET /auth/me` - Отримання даних поточного користувача
+
+## Середовище розробки
+
+Для повної роботи системи необхідно також запустити backend сервер:
+
+```bash
+# В окремому терміналі, в папці backend
+cd ../backend
+npm run dev
+```
+
+Backend буде доступний за адресою: `http://localhost:3001`

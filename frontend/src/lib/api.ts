@@ -1,5 +1,14 @@
 import axios from 'axios';
 import { LoginRequest, LoginResponse } from '@/types/auth';
+import { 
+  Project, 
+  Funnel, 
+  ProjectsResponse, 
+  FunnelsResponse, 
+  ProjectResponse,
+  CreateProjectRequest,
+  UpdateProjectRequest
+} from '@/types/projects';
 
 // Створюємо екземпляр axios з базовою конфігурацією
 const api = axios.create({
@@ -71,6 +80,108 @@ export const authAPI = {
     } catch (error) {
       console.error('Get current user error:', error);
       throw error;
+    }
+  },
+};
+
+export const projectsAPI = {
+  getAll: async (): Promise<ProjectsResponse> => {
+    try {
+      const response = await api.get('/projects');
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка завантаження проектів',
+      };
+    }
+  },
+
+  getById: async (id: number): Promise<ProjectResponse> => {
+    try {
+      const response = await api.get(`/projects/${id}`);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка завантаження проекту',
+      };
+    }
+  },
+
+  create: async (projectData: CreateProjectRequest): Promise<ProjectResponse> => {
+    try {
+      const response = await api.post('/projects', projectData);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка створення проекту',
+      };
+    }
+  },
+
+  update: async (id: number, projectData: Partial<UpdateProjectRequest>): Promise<ProjectResponse> => {
+    try {
+      const response = await api.put(`/projects/${id}`, projectData);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка оновлення проекту',
+      };
+    }
+  },
+
+  delete: async (id: number): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await api.delete(`/projects/${id}`);
+      return { success: true };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка видалення проекту',
+      };
+    }
+  },
+
+  updateStage: async (projectId: number, stageId: number): Promise<ProjectResponse> => {
+    try {
+      const response = await api.put(`/projects/${projectId}`, {
+        funnel_stage_id: stageId
+      });
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка оновлення етапу проекту',
+      };
+    }
+  },
+};
+
+export const funnelsAPI = {
+  getAll: async (): Promise<FunnelsResponse> => {
+    try {
+      const response = await api.get('/funnels');
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка завантаження воронок',
+      };
+    }
+  },
+
+  getById: async (id: number): Promise<{ success: boolean; data?: Funnel; error?: string }> => {
+    try {
+      const response = await api.get(`/funnels/${id}`);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка завантаження воронки',
+      };
     }
   },
 };

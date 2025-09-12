@@ -10,6 +10,7 @@ router.use(authenticateToken);
 // CRUD operations
 router.get('/', ProjectController.getAll);
 router.get('/:id', ProjectController.getById);
+router.get('/:id/products', ProjectController.getProducts);
 router.post('/', ProjectController.create);
 router.put('/:id', ProjectController.update);
 router.delete('/:id', ProjectController.delete);

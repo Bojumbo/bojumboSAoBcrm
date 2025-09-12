@@ -277,6 +277,12 @@ model Project {
   services ProjectService[]
   comments ProjectComment[]
 
+  // Додаткові індекси для оптимізації
+  @@index([main_responsible_manager_id])
+  @@index([counterparty_id])
+  @@index([funnel_id])
+  @@index([created_at])
+  @@index([updated_at])
   @@map("projects")
 }
 
@@ -361,6 +367,8 @@ model ProjectProduct {
   project Project @relation(fields: [project_id], references: [project_id], onDelete: Cascade)
   product Product @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
 
+  // Індекси для швидкого пошуку продуктів проекту
+  @@index([project_id])
   @@map("project_products")
 }
 
@@ -420,6 +428,9 @@ model ProjectComment {
   project Project @relation(fields: [project_id], references: [project_id], onDelete: Cascade)
   manager Manager @relation(fields: [manager_id], references: [manager_id], onDelete: Cascade)
 
+  // Індекси для швидкого пошуку коментарів проекту
+  @@index([project_id])
+  @@index([created_at])
   @@map("project_comments")
 }
 
