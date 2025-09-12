@@ -20,11 +20,36 @@ export class CommentController {
         });
       }
 
-      // Get comment first to check ownership and determine type
-      const projectComment = await CommentService.getProjectCommentById(commentId);
-      const subProjectComment = !projectComment ? await CommentService.getSubProjectCommentById(commentId) : null;
+      // Since we're using the generic delete endpoint, we need to determine
+      // which type of comment this is. We'll check both types and see which one exists.
+      let comment = null;
+      let isProjectComment = false;
+
+      // First try to find as a project comment
+      try {
+        const projectComment = await CommentService.getProjectCommentById(commentId);
+        if (projectComment) {
+          comment = projectComment;
+          isProjectComment = true;
+        }
+      } catch (e) {
+        // Continue to check subproject comments
+      }
+
+      // If not found as project comment, try subproject comment
+      if (!comment) {
+        try {
+          const subProjectComment = await CommentService.getSubProjectCommentById(commentId);
+          if (subProjectComment) {
+            comment = subProjectComment;
+            isProjectComment = false;
+          }
+        } catch (e) {
+          // Comment not found in either table
+        }
+      }
       
-      if (!projectComment && !subProjectComment) {
+      if (!comment) {
         return res.status(404).json({
           success: false,
           error: 'Comment not found'
@@ -32,8 +57,7 @@ export class CommentController {
       }
 
       // Check if user owns the comment
-      const comment = projectComment || subProjectComment;
-      if (!comment || !comment.manager || comment.manager.manager_id !== req.user.manager_id) {
+      if (!comment.manager || comment.manager.manager_id !== req.user.manager_id) {
         return res.status(403).json({
           success: false,
           error: 'You can only delete your own comments'
@@ -42,7 +66,7 @@ export class CommentController {
 
       // Delete the appropriate comment type
       let success = false;
-      if (projectComment) {
+      if (isProjectComment) {
         success = await CommentService.deleteProjectComment(commentId);
       } else {
         success = await CommentService.deleteSubProjectComment(commentId);
@@ -265,12 +289,29 @@ export class CommentController {
         });
       }
 
+      // First get the comment to check ownership
+      const comment = await CommentService.getProjectCommentById(commentId);
+      if (!comment) {
+        return res.status(404).json({
+          success: false,
+          error: 'Comment not found'
+        });
+      }
+
+      // Check if user owns the comment
+      if (!comment.manager || comment.manager.manager_id !== req.user.manager_id) {
+        return res.status(403).json({
+          success: false,
+          error: 'You can only delete your own comments'
+        });
+      }
+
       const success = await CommentService.deleteProjectComment(commentId);
 
       if (!success) {
         return res.status(404).json({
           success: false,
-          error: 'Comment not found'
+          error: 'Failed to delete comment'
         });
       }
 
@@ -368,7 +409,25 @@ export class CommentController {
         });
       }
 
-      const commentData = req.body;
+      const subprojectId = parseInt(req.params.subprojectId);
+      if (isNaN(subprojectId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid subproject ID'
+        });
+      }
+
+      const commentData = {
+        content: req.body.content,
+        subproject_id: subprojectId,
+        manager_id: req.user.manager_id,
+        ...(req.body.file && {
+          file_name: req.body.file.name,
+          file_url: req.body.file.url,
+          file_type: req.body.file.type
+        })
+      };
+      
       const comment = await CommentService.createSubProjectComment(commentData);
 
       res.status(201).json({
@@ -441,12 +500,29 @@ export class CommentController {
         });
       }
 
+      // First get the comment to check ownership
+      const comment = await CommentService.getSubProjectCommentById(commentId);
+      if (!comment) {
+        return res.status(404).json({
+          success: false,
+          error: 'Comment not found'
+        });
+      }
+
+      // Check if user owns the comment
+      if (!comment.manager || comment.manager.manager_id !== req.user.manager_id) {
+        return res.status(403).json({
+          success: false,
+          error: 'You can only delete your own comments'
+        });
+      }
+
       const success = await CommentService.deleteSubProjectComment(commentId);
 
       if (!success) {
         return res.status(404).json({
           success: false,
-          error: 'Comment not found'
+          error: 'Failed to delete comment'
         });
       }
 

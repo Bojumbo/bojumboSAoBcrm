@@ -149,6 +149,7 @@ model Sale {
   status String
   deferred_payment_date DateTime?
   project_id Int?
+  subproject_id Int?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -156,6 +157,7 @@ model Sale {
   counterparty Counterparty @relation(fields: [counterparty_id], references: [counterparty_id])
   responsible_manager Manager @relation(fields: [responsible_manager_id], references: [manager_id])
   project Project? @relation(fields: [project_id], references: [project_id])
+  subproject SubProject? @relation(fields: [subproject_id], references: [subproject_id])
   products SaleProduct[]
   services SaleService[]
   sale_status_type SaleStatusType? @relation(fields: [status], references: [name])
@@ -311,6 +313,7 @@ model SubProject {
   comments SubProjectComment[]
   products SubProjectProduct[]
   services SubProjectService[]
+  sales Sale[]
 
   @@map("subprojects")
 }
@@ -392,6 +395,7 @@ model SubProjectService {
   subproject_service_id Int @id @default(autoincrement())
   subproject_id Int
   service_id Int
+  quantity Decimal @default(1.0) @db.Decimal(10, 2)
   created_at DateTime @default(now())
 
   // Relationships

@@ -122,6 +122,7 @@ export interface SubProjectWithRelations extends SubProject {
   comments?: SubProjectCommentWithRelations[];
   products?: SubProjectProductWithRelations[];
   services?: SubProjectServiceWithRelations[];
+  sales?: SaleWithRelations[];
 }
 
 export interface TaskWithRelations extends Task {

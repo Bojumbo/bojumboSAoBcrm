@@ -5,46 +5,58 @@ import { Prisma } from '@prisma/client';
 
 // Input type for creating/updating subprojects
 interface SubProjectInput {
-    name: string;
+    name?: string;
     description?: string | null;
-    project_id: number;
+    project_id?: number;
     status?: string | null;
-    cost: number;
+    cost?: number;
+    sub_project_funnel_id?: number | null;
+    sub_project_funnel_stage_id?: number | null;
 }
 
 // Helper to convert Prisma types to application types
 const toSubProjectWithRelations = (
-    subProject: Prisma.SubProjectGetPayload<{
-        include: {
-            project: { include: { main_responsible_manager: true, counterparty: true } },
-            tasks: { include: { responsible_manager: true, creator_manager: true } },
-            comments: { include: { manager: true } },
-            products: { include: { product: { include: { unit: true } } } },
-            services: { include: { service: true } }
-        }
-    }>
+    subProject: any
 ): SubProjectWithRelations => {
     return {
         ...subProject,
         cost: subProject.cost.toNumber(),
-        project: {
+        project: subProject.project ? {
             ...subProject.project,
             forecast_amount: subProject.project.forecast_amount.toNumber(),
-        },
-        products: subProject.products.map(p => ({
+        } : null,
+        products: subProject.products?.map((p: any) => ({
             ...p,
             product: {
                 ...p.product,
                 price: p.product.price.toNumber(),
             }
-        })),
-        services: subProject.services.map(s => ({
+        })) || [],
+        services: subProject.services?.map((s: any) => ({
             ...s,
+            quantity: Number(s.quantity || 1),
             service: {
                 ...s.service,
                 price: s.service.price.toNumber(),
             }
-        })),
+        })) || [],
+        sales: subProject.sales?.map((sale: any) => ({
+            ...sale,
+            products: sale.products?.map((sp: any) => ({
+                ...sp,
+                product: {
+                    ...sp.product,
+                    price: Number(sp.product?.price || 0),
+                }
+            })) || [],
+            services: sale.services?.map((ss: any) => ({
+                ...ss,
+                service: {
+                    ...ss.service,
+                    price: Number(ss.service?.price || 0),
+                }
+            })) || [],
+        })) || [],
     } as unknown as SubProjectWithRelations;
 };
 
@@ -91,7 +103,7 @@ export class SubProjectService {
       }
     }
 
-    const subProjects = await prisma.subProject.findMany({
+    const subProjects = await (prisma.subProject.findMany as any)({
       where: whereClause,
       include: {
         project: {
@@ -103,7 +115,16 @@ export class SubProjectService {
         tasks: { include: { responsible_manager: true, creator_manager: true } },
         comments: { include: { manager: true }, orderBy: { created_at: 'asc' } },
         products: { include: { product: { include: { unit: true } } } },
-        services: { include: { service: true } }
+        services: { include: { service: true } },
+        sales: { 
+          include: { 
+            counterparty: true,
+            responsible_manager: true,
+            products: { include: { product: true } },
+            services: { include: { service: true } }
+          },
+          orderBy: { created_at: 'desc' }
+        }
       }
     });
     return subProjects.map(toSubProjectWithRelations);
@@ -143,7 +164,7 @@ export class SubProjectService {
       }
     }
 
-    const subProject = await prisma.subProject.findFirst({
+    const subProject = await (prisma.subProject.findFirst as any)({
       where: whereClause,
       include: {
         project: {
@@ -155,36 +176,85 @@ export class SubProjectService {
         tasks: { include: { responsible_manager: true, creator_manager: true } },
         comments: { include: { manager: true }, orderBy: { created_at: 'asc' } },
         products: { include: { product: { include: { unit: true } } } },
-        services: { include: { service: true } }
+        services: { include: { service: true } },
+        sales: { 
+          include: { 
+            counterparty: true,
+            responsible_manager: true,
+            products: { include: { product: true } },
+            services: { include: { service: true } }
+          },
+          orderBy: { created_at: 'desc' }
+        }
       }
     });
-    return subProject ? toSubProjectWithRelations(subProject) : null;
+    
+    console.log('SubProject found:', !!subProject);
+    if (subProject) {
+      console.log('Sales found in subproject:', subProject.sales?.length || 0);
+      if (subProject.sales?.length > 0) {
+        console.log('First sale products:', subProject.sales[0].products?.length || 0);
+        console.log('First sale services:', subProject.sales[0].services?.length || 0);
+        if (subProject.sales[0].products?.length > 0) {
+          const firstProduct = subProject.sales[0].products[0];
+          console.log('First product in sale (before processing):', {
+            product_id: firstProduct.product_id,
+            quantity: firstProduct.quantity,
+            product_price: firstProduct.product?.price?.toString(),
+            product_name: firstProduct.product?.name
+          });
+        }
+      }
+    }
+    
+    const result = subProject ? toSubProjectWithRelations(subProject) : null;
+    
+    // Log processed result
+    if (result?.sales && result.sales.length > 0 && result.sales[0].products && result.sales[0].products.length > 0) {
+      const firstProduct = result.sales[0].products[0];
+      console.log('First product after processing:', {
+        product_id: firstProduct.product_id,
+        quantity: firstProduct.quantity,
+        product_price: (firstProduct as any).product?.price,
+        product_price_type: typeof (firstProduct as any).product?.price,
+      });
+    }
+    
+    return result;
   }
 
-  static async create(data: SubProjectInput): Promise<SubProject> {
+  static async create(data: any): Promise<SubProject> {
+    const createData: any = {
+      name: data.name,
+      project_id: data.project_id,
+      cost: data.cost
+    };
+    
+    if (data.description !== undefined) createData.description = data.description;
+    if (data.status !== undefined) createData.status = data.status;
+    if (data.sub_project_funnel_id !== undefined) createData.sub_project_funnel_id = data.sub_project_funnel_id;
+    if (data.sub_project_funnel_stage_id !== undefined) createData.sub_project_funnel_stage_id = data.sub_project_funnel_stage_id;
+
     const subProject = await prisma.subProject.create({
-      data
+      data: createData
     });
     return toSubProject(subProject);
   }
 
-  static async update(id: number, data: Partial<SubProjectInput>): Promise<SubProject | null> {
+  static async update(id: number, data: any): Promise<SubProject | null> {
     // Explicitly pick only the fields that are part of the SubProject model
-    const updateData: {
-        name?: string;
-        description?: string | null;
-        status?: string | null;
-        cost?: number;
-        funnel_id?: number | null;
-        funnel_stage_id?: number | null;
-    } = {};
+    const updateData: any = {};
 
     if (data.name !== undefined) updateData.name = data.name;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.cost !== undefined) updateData.cost = data.cost;
-    if (data.funnel_id !== undefined) updateData.funnel_id = data.funnel_id;
-    if (data.funnel_stage_id !== undefined) updateData.funnel_stage_id = data.funnel_stage_id;
+    // Handle both old and new field names for backward compatibility
+    if (data.sub_project_funnel_id !== undefined) updateData.sub_project_funnel_id = data.sub_project_funnel_id;
+    else if (data.funnel_id !== undefined) updateData.sub_project_funnel_id = data.funnel_id;
+    
+    if (data.sub_project_funnel_stage_id !== undefined) updateData.sub_project_funnel_stage_id = data.sub_project_funnel_stage_id;
+    else if (data.funnel_stage_id !== undefined) updateData.sub_project_funnel_stage_id = data.funnel_stage_id;
 
     const subProject = await prisma.subProject.update({
       where: { subproject_id: id },
@@ -197,6 +267,92 @@ export class SubProjectService {
     try {
       await prisma.subProject.delete({
         where: { subproject_id: id }
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  static async addProduct(subprojectId: number, productId: number, quantity: number = 1): Promise<any> {
+    // Check if product is already added to avoid duplicates
+    const existing = await prisma.subProjectProduct.findFirst({
+      where: {
+        subproject_id: subprojectId,
+        product_id: productId
+      }
+    });
+
+    if (existing) {
+      // If exists, update quantity
+      return await prisma.subProjectProduct.update({
+        where: { subproject_product_id: existing.subproject_product_id },
+        data: { quantity },
+        include: { product: true }
+      });
+    } else {
+      // If not exists, create new
+      return await prisma.subProjectProduct.create({
+        data: {
+          subproject_id: subprojectId,
+          product_id: productId,
+          quantity
+        },
+        include: { product: true }
+      });
+    }
+  }
+
+  static async removeProduct(subprojectId: number, productId: number): Promise<boolean> {
+    try {
+      await prisma.subProjectProduct.deleteMany({
+        where: {
+          subproject_id: subprojectId,
+          product_id: productId
+        }
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  static async addService(subprojectId: number, serviceId: number, quantity: number = 1.0): Promise<any> {
+    // Check if service is already added to avoid duplicates
+    const existing = await prisma.subProjectService.findFirst({
+      where: {
+        subproject_id: subprojectId,
+        service_id: serviceId
+      }
+    });
+
+    if (existing) {
+      // If exists, update quantity
+      return await prisma.subProjectService.update({
+        where: { subproject_service_id: existing.subproject_service_id },
+        data: { quantity: quantity } as any, // Temporary type assertion
+        include: { service: true }
+      });
+    } else {
+      // If not exists, create new
+      return await prisma.subProjectService.create({
+        data: {
+          subproject_id: subprojectId,
+          service_id: serviceId,
+          quantity: quantity
+        } as any, // Temporary type assertion
+        include: { service: true }
+      });
+    }
+  }
+
+  static async removeService(subprojectId: number, serviceId: number): Promise<boolean> {
+    try {
+      await prisma.subProjectService.deleteMany({
+        where: {
+          subproject_id: subprojectId,
+          service_id: serviceId
+        }
       });
       return true;
     } catch {

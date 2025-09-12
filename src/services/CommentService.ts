@@ -27,8 +27,8 @@ export const CommentService = {
     const { data } = await api.post(`/comments/projects/${projectId}`, payload);
     return data.data ?? data;
   },
-  async deleteProjectComment(commentId: number): Promise<void> {
-    await api.delete(`/comments/${commentId}`);
+  async deleteProjectComment(projectId: number, commentId: number): Promise<void> {
+    await api.delete(`/comments/projects/${projectId}/${commentId}`);
   },
   async getSubProjectComments(subprojectId: number): Promise<ProjectComment[]> {
     const { data } = await api.get(`/comments/subprojects/${subprojectId}`);
@@ -40,7 +40,7 @@ export const CommentService = {
     const { data } = await api.post(`/comments/subprojects/${subprojectId}`, payload);
     return data.data ?? data;
   },
-  async deleteSubProjectComment(commentId: number): Promise<void> {
-    await api.delete(`/comments/${commentId}`);
+  async deleteSubProjectComment(subprojectId: number, commentId: number): Promise<void> {
+    await api.delete(`/comments/subprojects/${subprojectId}/${commentId}`);
   },
 };

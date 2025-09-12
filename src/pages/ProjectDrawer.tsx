@@ -50,7 +50,16 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
   const [createBusy, setCreateBusy] = useState(false);
   const [creatingSale, setCreatingSale] = useState(false);
   const [saleTitle, setSaleTitle] = useState('');
-  const [saleDate, setSaleDate] = useState<string>('');
+  const [saleDate, setSaleDate] = useState<string>(() => {
+    // Initialize with current date and time in local timezone
+    const now = new Date();
+    // Format as datetime-local input format: YYYY-MM-DDTHH:MM
+    return now.getFullYear() + '-' + 
+           String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(now.getDate()).padStart(2, '0') + 'T' + 
+           String(now.getHours()).padStart(2, '0') + ':' + 
+           String(now.getMinutes()).padStart(2, '0');
+  });
   const [saleStatusId, setSaleStatusId] = useState<number | ''>('');
   const [statusTypes, setStatusTypes] = useState<SaleStatusType[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -196,12 +205,12 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
   };
 
   const deleteComment = async (commentId: number) => {
-    if (!user) return;
+    if (!user || !projectId) return;
     if (!confirm('Ви впевнені, що хочете видалити цей коментар? Цю дію не можна скасувати.')) {
       return;
     }
     try {
-      await CommentService.deleteProjectComment(commentId);
+      await CommentService.deleteProjectComment(projectId, commentId);
       // Mark comment as deleted locally instead of removing it
       setComments(prev => prev.map(c => 
         c.comment_id === commentId 
@@ -630,12 +639,22 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
                   )}
                   <div className="flex items-center gap-2 mb-3">
                     <GlassButton onClick={async ()=>{
+                      // Reset form and set current date/time
+                      const now = new Date();
+                      const currentDateTime = now.getFullYear() + '-' + 
+                                            String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                                            String(now.getDate()).padStart(2, '0') + 'T' + 
+                                            String(now.getHours()).padStart(2, '0') + ':' + 
+                                            String(now.getMinutes()).padStart(2, '0');
+                      
                       setCreatingSale(true);
                       // defaults
                       setSaleTitle('');
-                      setSaleDate(new Date().toISOString().slice(0,10));
+                      setSaleDate(currentDateTime);
                       setSaleError(null);
                       setSaleCounterpartyId(data?.counterparty_id ?? '');
+                      setSaleProducts([]);
+                      setSaleServices([]);
                       try {
                         const [sts, prods, servs] = await Promise.all([
                           SaleStatusTypesService.getAll(),
@@ -655,9 +674,34 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
                   <div className="space-y-2">
                     {(data?.sales || []).map((s:any) => (
                       <div key={s.sale_id} className="bg-white/5 border border-white/10 rounded-lg p-3">
-                        <div className="font-medium text-sm">{s.title || s.name || `Продаж #${s.sale_id}`}</div>
-                        <div className="text-xs opacity-75 mt-1">
-                          {s.counterparty?.name ? `Контрагент: ${s.counterparty.name}` : ''}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-medium text-sm">{s.title || s.name || `Продаж #${s.sale_id}`}</div>
+                            <div className="text-xs opacity-75 mt-1">
+                              {s.counterparty?.name ? `Контрагент: ${s.counterparty.name}` : ''}
+                            </div>
+                          </div>
+                          <GlassIconButton 
+                            aria-label="Видалити продаж" 
+                            title="Видалити продаж" 
+                            onClick={async () => {
+                              if (confirm('Ви впевнені, що хочете видалити цей продаж?')) {
+                                try {
+                                  await SalesService.delete(s.sale_id);
+                                  // Оновлюємо дані проекту
+                                  if (data?.project_id) {
+                                    const updatedProject = await ProjectsService.getById(data.project_id);
+                                    setData(updatedProject);
+                                  }
+                                } catch (error) {
+                                  console.error('Помилка видалення продажу:', error);
+                                  alert('Помилка при видаленні продажу');
+                                }
+                              }
+                            }}
+                          >
+                            ✕
+                          </GlassIconButton>
                         </div>
                       </div>
                     ))}
@@ -848,7 +892,7 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
       <div className="space-y-3">
         <div className="flex gap-2 flex-wrap">
           <input className="glass-input rounded-xl px-3 py-2 flex-1 min-w-[240px]" placeholder="Назва/Титул" value={saleTitle} onChange={e=>setSaleTitle(e.target.value)} />
-          <input type="date" className="glass-input rounded-xl px-3 py-2 w-[200px]" value={saleDate} onChange={e=> setSaleDate(e.target.value)} />
+          <input type="datetime-local" className="glass-input rounded-xl px-3 py-2 w-[200px]" value={saleDate} onChange={e=> setSaleDate(e.target.value)} />
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           <label className="text-sm opacity-80">Статус</label>
@@ -958,7 +1002,18 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
                 const p = await ProjectsService.getById(data.project_id);
                 setData(p);
                 setCreatingSale(false);
-                setSaleTitle(''); setSaleDate(''); setSaleProducts([]); setSaleServices([]); setSaleCounterpartyId('');
+                // Reset form fields (date will be auto-set when opening modal again)
+                setSaleTitle(''); 
+                const now = new Date();
+                const currentDateTime = now.getFullYear() + '-' + 
+                                      String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                                      String(now.getDate()).padStart(2, '0') + 'T' + 
+                                      String(now.getHours()).padStart(2, '0') + ':' + 
+                                      String(now.getMinutes()).padStart(2, '0');
+                setSaleDate(currentDateTime);
+                setSaleProducts([]); 
+                setSaleServices([]); 
+                setSaleCounterpartyId('');
               } catch (e: any) {
                 const msg = e?.response?.data?.error || e?.message || 'Не вдалося створити продаж';
                 setSaleError(String(msg));
@@ -969,7 +1024,22 @@ export default function ProjectDrawer({ projectId, open, onClose, onSaved }: Pro
         {saleError && <div className="text-sm text-red-400">{saleError}</div>}
       </div>
     </GlassModal>
-    <SubProjectDrawer open={subDrawerOpen} subprojectId={activeSubId} onClose={() => setSubDrawerOpen(false)} onSaved={onSaved} />
+    <SubProjectDrawer 
+      open={subDrawerOpen} 
+      subprojectId={activeSubId} 
+      onClose={() => setSubDrawerOpen(false)} 
+      onSaved={async () => {
+        // Reload project data to reflect subproject changes
+        if (projectId) {
+          try {
+            const p = await ProjectsService.getById(projectId);
+            setData(p);
+          } catch (e) {
+            console.error('Error reloading project after subproject save:', e);
+          }
+        }
+      }} 
+    />
     <TaskViewModal open={taskViewOpen} task={activeTask} onClose={() => setTaskViewOpen(false)} />
     </>
   );

@@ -168,4 +168,168 @@ export class SubProjectController {
       });
     }
   }
+
+  static async addProduct(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Not authenticated'
+        });
+      }
+
+      const subprojectId = parseInt(req.params.id);
+      const { product_id, quantity = 1 } = req.body;
+
+      if (isNaN(subprojectId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid subproject ID'
+        });
+      }
+
+      if (!product_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Product ID is required'
+        });
+      }
+
+      const result = await SubProjectService.addProduct(subprojectId, product_id, quantity);
+
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Add product to subproject error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+
+  static async removeProduct(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Not authenticated'
+        });
+      }
+
+      const subprojectId = parseInt(req.params.id);
+      const productId = parseInt(req.params.productId);
+
+      if (isNaN(subprojectId) || isNaN(productId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid IDs'
+        });
+      }
+
+      const success = await SubProjectService.removeProduct(subprojectId, productId);
+
+      if (!success) {
+        return res.status(404).json({
+          success: false,
+          error: 'Product not found in subproject'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Product removed from subproject'
+      });
+    } catch (error) {
+      console.error('Remove product from subproject error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+
+  static async addService(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Not authenticated'
+        });
+      }
+
+      const subprojectId = parseInt(req.params.id);
+      const { service_id, quantity = 1.0 } = req.body;
+
+      if (isNaN(subprojectId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid subproject ID'
+        });
+      }
+
+      if (!service_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Service ID is required'
+        });
+      }
+
+      const result = await SubProjectService.addService(subprojectId, service_id, quantity);
+
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Add service to subproject error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+
+  static async removeService(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Not authenticated'
+        });
+      }
+
+      const subprojectId = parseInt(req.params.id);
+      const serviceId = parseInt(req.params.serviceId);
+
+      if (isNaN(subprojectId) || isNaN(serviceId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid IDs'
+        });
+      }
+
+      const success = await SubProjectService.removeService(subprojectId, serviceId);
+
+      if (!success) {
+        return res.status(404).json({
+          success: false,
+          error: 'Service not found in subproject'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Service removed from subproject'
+      });
+    } catch (error) {
+      console.error('Remove service from subproject error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
 }

@@ -19,5 +19,31 @@ export const SubProjectsService = {
   },
   async delete(id: number): Promise<void> {
     await api.delete(`/subprojects/${id}`);
+  },
+
+  // Products management
+  async addProduct(subprojectId: number, productId: number, quantity: number = 1): Promise<any> {
+    const { data } = await api.post(`/subprojects/${subprojectId}/products`, {
+      product_id: productId,
+      quantity
+    });
+    return data.data ?? data;
+  },
+
+  async removeProduct(subprojectId: number, productId: number): Promise<void> {
+    await api.delete(`/subprojects/${subprojectId}/products/${productId}`);
+  },
+
+  // Services management
+  async addService(subprojectId: number, serviceId: number, quantity: number = 1.0): Promise<any> {
+    const { data } = await api.post(`/subprojects/${subprojectId}/services`, {
+      service_id: serviceId,
+      quantity
+    });
+    return data.data ?? data;
+  },
+
+  async removeService(subprojectId: number, serviceId: number): Promise<void> {
+    await api.delete(`/subprojects/${subprojectId}/services/${serviceId}`);
   }
 };

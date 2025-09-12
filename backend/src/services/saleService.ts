@@ -94,37 +94,64 @@ export class SaleService {
     }
 
   const saleData: any = { ...raw, status: statusValue };
-  // Remove non-persisted helper field if present
-  if ('subproject_id' in saleData) delete saleData.subproject_id;
+
+    console.log('SaleService.create called with data:', saleData);
+    console.log('Products to create:', products);
+    console.log('Services to create:', services);
 
     if (!saleData.counterparty_id) {
+      console.log('Missing counterparty_id');
       throw new Error('COUNTERPARTY_REQUIRED');
     }
     if (!saleData.responsible_manager_id) {
+      console.log('Missing responsible_manager_id');
       throw new Error('RESPONSIBLE_REQUIRED');
     }
 
-    return await prisma.sale.create({
-      data: {
-        ...saleData,
-        sale_date: new Date(saleData.sale_date),
-        deferred_payment_date: saleData.deferred_payment_date ? new Date(saleData.deferred_payment_date) : null,
-        products: products ? {
-          create: products.map((p: { product_id: number; quantity: number }) => ({
-            quantity: p.quantity,
-            product: { connect: { product_id: p.product_id } }
-          }))
-        } : undefined,
-        services: services ? {
-          create: services.flatMap((s: { service_id: number; quantity?: number }) => {
-            const qty = Math.max(1, Math.round(Number(s.quantity ?? 1)));
-            return Array.from({ length: qty }).map(() => ({
-              service: { connect: { service_id: s.service_id } }
-            }));
-          })
-        } : undefined
-      }
-    });
+    console.log('About to create sale with Prisma...');
+    
+    try {
+      const result = await prisma.sale.create({
+        data: {
+          ...saleData,
+          sale_date: new Date(saleData.sale_date),
+          deferred_payment_date: saleData.deferred_payment_date ? new Date(saleData.deferred_payment_date) : null,
+          products: products ? {
+            create: products.map((p: { product_id: number; quantity: number }) => ({
+              quantity: p.quantity,
+              product: { connect: { product_id: p.product_id } }
+            }))
+          } : undefined,
+          services: services ? {
+            create: services.flatMap((s: { service_id: number; quantity?: number }) => {
+              const qty = Math.max(1, Math.round(Number(s.quantity ?? 1)));
+              return Array.from({ length: qty }).map(() => ({
+                service: { connect: { service_id: s.service_id } }
+              }));
+            })
+          } : undefined
+        }
+      });
+      
+      console.log('Sale created successfully with ID:', result.sale_id);
+      
+      // Check if products and services were created
+      const createdSale = await prisma.sale.findUnique({
+        where: { sale_id: result.sale_id },
+        include: {
+          products: { include: { product: true } },
+          services: { include: { service: true } }
+        }
+      });
+      
+      console.log('Created sale with products:', createdSale?.products?.length || 0);
+      console.log('Created sale with services:', createdSale?.services?.length || 0);
+      
+      return result;
+    } catch (error) {
+      console.error('Error creating sale in Prisma:', error);
+      throw error;
+    }
   }
 
   static async update(id: number, data: UpdateSaleRequest): Promise<Sale | null> {

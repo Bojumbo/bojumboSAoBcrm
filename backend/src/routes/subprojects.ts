@@ -14,4 +14,10 @@ router.post('/', SubProjectController.create);
 router.put('/:id', SubProjectController.update);
 router.delete('/:id', SubProjectController.delete);
 
+// Products and Services management
+router.post('/:id/products', SubProjectController.addProduct);
+router.delete('/:id/products/:productId', SubProjectController.removeProduct);
+router.post('/:id/services', SubProjectController.addService);
+router.delete('/:id/services/:serviceId', SubProjectController.removeService);
+
 export default router;
