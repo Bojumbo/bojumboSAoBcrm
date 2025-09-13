@@ -135,20 +135,13 @@ export class UploadService {
    * @returns true якщо тип файлу допустимий
    */
   static validateFileType(file: File, allowedTypes?: string[]): boolean {
-    const defaultAllowedTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/plain'
-    ];
-
-    const typesToCheck = allowedTypes || defaultAllowedTypes;
-    return typesToCheck.includes(file.type);
+    // Якщо задані конкретні типи, перевіряємо їх
+    if (allowedTypes && allowedTypes.length > 0) {
+      return allowedTypes.includes(file.type);
+    }
+    
+    // Якщо типи не задані, дозволяємо всі файли
+    return true;
   }
 
   /**

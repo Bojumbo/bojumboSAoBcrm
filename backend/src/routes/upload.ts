@@ -11,27 +11,8 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: config.upload.maxFileSize
-  },
-  fileFilter: (req, file, cb) => {
-    // Allow common file types
-    const allowedTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/plain'
-    ];
-
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type'));
-    }
   }
+  // Видалено fileFilter - дозволяємо всі типи файлів
 });
 
 // All routes require authentication

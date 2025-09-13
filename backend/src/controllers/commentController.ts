@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { CommentService } from '../services/commentService.js';
+import { UploadService } from '../services/uploadService.js';
 
 export class CommentController {
   // General comment operations
@@ -181,39 +182,78 @@ export class CommentController {
         });
       }
 
-      const body = req.body as any;
-      if (!body || (!body.content && !body.file)) {
-        return res.status(400).json({ success: false, error: 'Content or file required' });
+      const files = req.files as Express.Multer.File[];
+      const { content } = req.body;
+
+      console.log('Create comment request:', {
+        projectId,
+        content: content?.substring(0, 50) + '...',
+        filesCount: files?.length || 0,
+        files: files?.map(f => ({ name: f.originalname, size: f.size })) || []
+      });
+
+      // Check if we have content or files
+      if (!content?.trim() && (!files || files.length === 0)) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Content or file required' 
+        });
       }
 
       // Resolve manager from token's email to avoid stale IDs after reseed
       const { prisma } = await import('../config/database.js');
       const authEmail = String(req.user.email || '').toLowerCase();
       console.log('Creating comment - Auth email:', authEmail);
-      const managerRecord = await prisma.manager.findUnique({ where: { email: authEmail }, select: { manager_id: true } });
+      
+      const managerRecord = await prisma.manager.findUnique({ 
+        where: { email: authEmail }, 
+        select: { manager_id: true } 
+      });
+      
       console.log('Manager record found:', managerRecord);
       if (!managerRecord) {
-        return res.status(404).json({ success: false, error: 'Manager not found' });
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Manager not found' 
+        });
       }
+      
       const managerId = managerRecord.manager_id;
       console.log('Using manager ID:', managerId);
 
       // Validate project exists to avoid FK error
-      const projectExists = await prisma.project.findUnique({ where: { project_id: projectId }, select: { project_id: true } });
+      const projectExists = await prisma.project.findUnique({ 
+        where: { project_id: projectId }, 
+        select: { project_id: true } 
+      });
+      
       if (!projectExists) {
-        return res.status(404).json({ success: false, error: 'Project not found' });
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Project not found' 
+        });
+      }
+
+      let fileInfo = null;
+      
+      // Handle file upload if provided
+      if (files && files.length > 0) {
+        // For now, handle only the first file
+        const file = files[0];
+        fileInfo = await UploadService.uploadFile(file);
       }
 
       const data: any = {
         project_id: projectId,
         manager_id: managerId,
-        content: body.content || ''
+        content: content?.trim() || ''
       };
 
-      if (body.file) {
-        data.file_name = body.file.name;
-        data.file_type = body.file.type;
-        data.file_url = body.file.url;
+      // Add file information if available
+      if (fileInfo) {
+        data.file_name = fileInfo.fileName;
+        data.file_type = fileInfo.fileType;
+        data.file_url = fileInfo.fileUrl;
       }
 
       const comment = await CommentService.createProjectComment(data);

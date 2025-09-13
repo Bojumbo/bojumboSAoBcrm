@@ -35,8 +35,33 @@ if (!config.jwt.secret) {
   process.exit(1);
 }
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(process.cwd(), config.upload.dir)));
+// Serve static files from uploads directory with CORS
+app.use('/uploads', (req, res, next) => {
+  console.log('=== STATIC FILE REQUEST ===');
+  console.log('Method:', req.method);
+  console.log('Original URL:', req.originalUrl);
+  console.log('Path:', req.path);
+  console.log('Upload dir config:', config.upload.dir);
+  console.log('Full upload path:', path.join(process.cwd(), config.upload.dir));
+  console.log('Requested file path:', path.join(process.cwd(), config.upload.dir, req.path));
+  
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  
+  // Перевірити чи файл існує
+  const filePath = path.join(process.cwd(), config.upload.dir, req.path);
+  import('fs').then(fs => {
+    fs.access(filePath, fs.constants.F_OK, (err) => {
+      if (err) {
+        console.log('File NOT found:', filePath);
+      } else {
+        console.log('File found:', filePath);
+      }
+    });
+  });
+  
+  next();
+}, express.static(path.join(process.cwd(), config.upload.dir)));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
