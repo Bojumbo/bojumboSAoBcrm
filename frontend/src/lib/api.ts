@@ -9,6 +9,7 @@ import {
   CreateProjectRequest,
   UpdateProjectRequest
 } from '@/types/projects';
+import { Counterparty, CounterpartyWithRelations } from '@/types/counterparties';
 
 // Створюємо екземпляр axios з базовою конфігурацією
 const api = axios.create({
@@ -182,6 +183,65 @@ export const funnelsAPI = {
         success: false,
         error: error.response?.data?.error || 'Помилка завантаження воронки',
       };
+    }
+  },
+};
+
+export const counterpartiesAPI = {
+  createCounterparty: async (data: Partial<Counterparty>) => {
+    try {
+      const response = await fetch('/api/counterparties', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Помилка створення контрагента');
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      throw new Error(error.message || 'Помилка створення контрагента');
+    }
+  },
+
+  updateCounterparty: async (id: number, data: Partial<Counterparty>) => {
+    try {
+      const response = await fetch(`/api/counterparties/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Помилка оновлення контрагента');
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      throw new Error(error.message || 'Помилка оновлення контрагента');
+    }
+  },
+
+  getCounterparty: async (id: number) => {
+    try {
+      const response = await fetch(`/api/counterparties/${id}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Помилка отримання контрагента');
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      throw new Error(error.message || 'Помилка отримання контрагента');
     }
   },
 };

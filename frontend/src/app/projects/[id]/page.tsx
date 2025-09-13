@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
-import ProjectDetails from '@/components/ProjectDetails';
+import ProjectDetailsComponent from '@/components/ProjectDetailsComponent';
 
 export default function ProjectPage() {
   const params = useParams();
@@ -10,8 +10,8 @@ export default function ProjectPage() {
 
   return (
     <DashboardLayout>
-      <div className="h-full">
-        <ProjectDetails projectId={parseInt(projectId)} />
+      <div>
+        <ProjectDetailsComponent projectId={parseInt(projectId)} />
       </div>
     </DashboardLayout>
   );

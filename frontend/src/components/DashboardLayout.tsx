@@ -8,9 +8,10 @@ import LoadingSpinner from '@/components/ui/loading-spinner';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  title?: string;
 }
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -37,19 +38,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="h-screen bg-gray-50 overflow-hidden">
+    <div className="min-h-screen bg-gray-50">
       <Sidebar 
         collapsed={sidebarCollapsed} 
         onCollapsedChange={setSidebarCollapsed}
       />
       <div 
-        className={`h-full flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+        className={`min-h-screen flex flex-col transition-all duration-300 ease-in-out ${
           sidebarCollapsed 
             ? 'lg:ml-16' 
             : 'lg:ml-64'
         }`}
       >
-        <main className="flex-1 overflow-hidden pt-16 lg:pt-0">
+        {title && (
+          <header className="bg-white shadow-sm border-b px-6 py-4">
+            <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
+          </header>
+        )}
+        <main className={`flex-1 ${title ? 'pt-0' : 'pt-16 lg:pt-0'}`}>
           {children}
         </main>
       </div>

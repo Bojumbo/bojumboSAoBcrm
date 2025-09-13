@@ -5,7 +5,18 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   
   // Маршрути, які потребують аутентифікації
-  const protectedPaths = ['/dashboard'];
+  const protectedPaths = [
+    '/dashboard',
+    '/counterparties',
+    '/projects',
+    '/sales',
+    '/products',
+    '/services',
+    '/tasks',
+    '/warehouse',
+    '/settings',
+    '/subprojects'
+  ];
   
   // Публічні маршрути
   const publicPaths = ['/login', '/'];

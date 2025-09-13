@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="uk" className="h-full">
-      <body className={`${inter.variable} font-sans antialiased h-full`}>
+      <body className={`${inter.variable} font-sans antialiased min-h-full`}>
         <AuthProvider>
           {children}
         </AuthProvider>

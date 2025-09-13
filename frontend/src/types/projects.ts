@@ -98,6 +98,13 @@ export interface Product {
   unit_id?: number;
   created_at: string;
   updated_at: string;
+  unit?: Unit;
+}
+
+export interface Unit {
+  unit_id: number;
+  name: string;
+  created_at: string;
 }
 
 export interface ProjectProduct {

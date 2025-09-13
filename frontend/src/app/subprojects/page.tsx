@@ -1,3 +1,5 @@
+'use client';
+
 import DashboardLayout from '@/components/DashboardLayout';
 import PagePlaceholder from '@/components/PagePlaceholder';
 import { GitBranch } from 'lucide-react';
