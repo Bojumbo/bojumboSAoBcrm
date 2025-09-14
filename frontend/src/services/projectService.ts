@@ -109,6 +109,19 @@ class ProjectService {
       method: 'DELETE',
     });
   }
+
+  async addSecondaryManager(projectId: number, managerId: number): Promise<any> {
+    return this.fetchWithAuth(`/projects/${projectId}/managers`, {
+      method: 'POST',
+      body: JSON.stringify({ manager_id: managerId }),
+    });
+  }
+
+  async removeSecondaryManager(projectId: number, managerId: number): Promise<void> {
+    return this.fetchWithAuth(`/projects/${projectId}/managers/${managerId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const projectService = new ProjectService();

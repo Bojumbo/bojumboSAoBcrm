@@ -3,15 +3,17 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Project } from '@/types/projects';
-import { User, Building2, Users, DollarSign, Calendar, FileText } from 'lucide-react';
+import { User, Building2, Users, DollarSign, Calendar, FileText, Edit } from 'lucide-react';
 
 interface ProjectInfoPanelProps {
   project: Project;
+  onEdit?: () => void;
 }
 
-export default function ProjectInfoPanel({ project }: ProjectInfoPanelProps) {
+export default function ProjectInfoPanel({ project, onEdit }: ProjectInfoPanelProps) {
   const formatCurrency = (amount: string | number) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat('uk-UA', {
@@ -33,10 +35,22 @@ export default function ProjectInfoPanel({ project }: ProjectInfoPanelProps) {
     <div className="w-full">
       <Card className="h-fit">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Інформація про проект
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Інформація про проект
+            </CardTitle>
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onEdit}
+                className="h-8 w-8 p-0"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Опис проекту */}

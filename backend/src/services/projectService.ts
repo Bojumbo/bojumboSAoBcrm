@@ -259,6 +259,82 @@ export class ProjectService {
       }
     });
   }
+
+  static async addSecondaryManager(projectId: number, managerId: number): Promise<ProjectManager> {
+    // Перевіряємо чи існує проект
+    const project = await prisma.project.findUnique({
+      where: { project_id: projectId }
+    });
+
+    if (!project) {
+      throw new Error('Project not found');
+    }
+
+    // Перевіряємо чи існує менеджер
+    const manager = await prisma.manager.findUnique({
+      where: { manager_id: managerId }
+    });
+
+    if (!manager) {
+      throw new Error('Manager not found');
+    }
+
+    // Перевіряємо чи менеджер вже не призначений як головний відповідальний
+    if (project.main_responsible_manager_id === managerId) {
+      throw new Error('Manager is already the main responsible manager for this project');
+    }
+
+    // Перевіряємо чи менеджер вже не призначений як додатковий
+    const existingAssignment = await prisma.projectManager.findUnique({
+      where: {
+        project_id_manager_id: {
+          project_id: projectId,
+          manager_id: managerId
+        }
+      }
+    });
+
+    if (existingAssignment) {
+      throw new Error('Manager is already assigned to this project');
+    }
+
+    // Додаємо менеджера
+    const result = await prisma.projectManager.create({
+      data: {
+        project_id: projectId,
+        manager_id: managerId
+      },
+      include: {
+        manager: {
+          select: { 
+            manager_id: true, 
+            first_name: true, 
+            last_name: true, 
+            email: true 
+          }
+        }
+      }
+    });
+
+    return result;
+  }
+
+  static async removeSecondaryManager(projectId: number, managerId: number): Promise<boolean> {
+    try {
+      await prisma.projectManager.delete({
+        where: {
+          project_id_manager_id: {
+            project_id: projectId,
+            manager_id: managerId
+          }
+        }
+      });
+      return true;
+    } catch (error) {
+      // Якщо запис не знайдено, повертаємо false
+      return false;
+    }
+  }
 }
 
 // Separate SubProjectService for clarity

@@ -273,4 +273,91 @@ export class ProjectController {
       });
     }
   }
+
+  static async addSecondaryManager(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Not authenticated'
+        });
+      }
+
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid project ID'
+        });
+      }
+
+      const { manager_id } = req.body;
+      if (!manager_id || isNaN(parseInt(manager_id))) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid manager ID'
+        });
+      }
+
+      const result = await ProjectService.addSecondaryManager(projectId, parseInt(manager_id));
+
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Add secondary manager error:', error);
+      if (error instanceof Error && error.message.includes('already exists')) {
+        return res.status(409).json({
+          success: false,
+          error: 'Manager is already assigned to this project'
+        });
+      }
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+
+  static async removeSecondaryManager(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Not authenticated'
+        });
+      }
+
+      const projectId = parseInt(req.params.id);
+      const managerId = parseInt(req.params.manager_id);
+      
+      if (isNaN(projectId) || isNaN(managerId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid project ID or manager ID'
+        });
+      }
+
+      const result = await ProjectService.removeSecondaryManager(projectId, managerId);
+
+      if (!result) {
+        return res.status(404).json({
+          success: false,
+          error: 'Manager assignment not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Manager removed successfully'
+      });
+    } catch (error) {
+      console.error('Remove secondary manager error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
 }

@@ -4,15 +4,18 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MessageSquare, FileText, ShoppingCart, TrendingUp, CheckSquare } from 'lucide-react';
-import { Project } from '@/types/projects';
+import { Project, Funnel } from '@/types/projects';
 import { projectService } from '@/services/projectService';
+import { funnelService } from '@/services/funnelService';
 import ProjectInfoPanel from './ProjectInfoPanel';
 import ProjectChat from './ProjectChat';
 import ProjectSubprojects from './ProjectSubprojects';
 import ProjectProducts from './ProjectProducts';
 import ProjectSales from './ProjectSales';
 import ProjectTasks from './ProjectTasks';
+import ProjectEditDialog from './ProjectEditDialog';
 
 interface ProjectDetailsComponentProps {
   projectId: number;
@@ -22,6 +25,10 @@ export default function ProjectDetailsComponent({ projectId }: ProjectDetailsCom
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [funnels, setFunnels] = useState<Funnel[]>([]);
+  const [updatingFunnel, setUpdatingFunnel] = useState(false);
+  const [updatingStage, setUpdatingStage] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -50,8 +57,78 @@ export default function ProjectDetailsComponent({ projectId }: ProjectDetailsCom
       }
     };
 
+    const fetchFunnels = async () => {
+      try {
+        const funnelsData = await funnelService.getAll();
+        setFunnels(funnelsData);
+      } catch (err) {
+        console.error('Error fetching funnels:', err);
+      }
+    };
+
     fetchProject();
+    fetchFunnels();
   }, [projectId]);
+
+  const handleFunnelChange = async (funnelId: string) => {
+    if (!project || updatingFunnel) return;
+    
+    try {
+      setUpdatingFunnel(true);
+      const updatedProject = await projectService.update(project.project_id, {
+        funnel_id: funnelId === 'none' ? undefined : parseInt(funnelId),
+        funnel_stage_id: undefined // Скидаємо етап при зміні воронки
+      });
+      
+      // Отримуємо повні дані проекту з новою воронкою та етапами
+      const fullProject = await projectService.getById(project.project_id);
+      setProject(fullProject);
+    } catch (err) {
+      console.error('Error updating funnel:', err);
+    } finally {
+      setUpdatingFunnel(false);
+    }
+  };
+
+  const handleStageChange = async (stageId: string) => {
+    if (!project || updatingStage) return;
+    
+    try {
+      setUpdatingStage(true);
+      const updatedProject = await projectService.update(project.project_id, {
+        funnel_stage_id: stageId === 'none' ? undefined : parseInt(stageId)
+      });
+      
+      // Отримуємо повні дані проекту
+      const fullProject = await projectService.getById(project.project_id);
+      setProject(fullProject);
+    } catch (err) {
+      console.error('Error updating stage:', err);
+    } finally {
+      setUpdatingStage(false);
+    }
+  };
+
+  // Отримуємо етапи для поточної воронки
+  const currentStages = project?.funnel_id 
+    ? funnels.find(f => f.funnel_id === project.funnel_id)?.stages || []
+    : [];
+
+  // Додаємо логування для діагностики
+  useEffect(() => {
+    console.log('Project funnel_id:', project?.funnel_id);
+    console.log('Available funnels:', funnels.map(f => ({ id: f.funnel_id, name: f.name, stagesCount: f.stages?.length })));
+    console.log('Current stages for selected funnel:', currentStages.map(s => ({ id: s.funnel_stage_id, name: s.name })));
+  }, [project?.funnel_id, funnels, currentStages]);
+
+  const handleEditProject = () => {
+    setIsEditDialogOpen(true);
+  };
+
+  const handleProjectUpdated = (updatedProject: Project) => {
+    setProject(updatedProject);
+    setIsEditDialogOpen(false);
+  };
 
   if (loading) {
     return (
@@ -85,11 +162,55 @@ export default function ProjectDetailsComponent({ projectId }: ProjectDetailsCom
               <h1 className="text-2xl md:text-3xl font-bold mb-2 break-words">{project.name}</h1>
               <div className="flex flex-wrap gap-2 mb-4">
                 <Badge variant="outline">ID: {project.project_id}</Badge>
-                {project.funnel && (
-                  <Badge variant="default">{project.funnel.name}</Badge>
-                )}
-                {project.funnel_stage && (
-                  <Badge variant="secondary">{project.funnel_stage.name}</Badge>
+                
+                {/* Спадаюче меню для воронки */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Воронка:</span>
+                  <Select
+                    value={project.funnel_id?.toString() || "none"}
+                    onValueChange={handleFunnelChange}
+                    disabled={updatingFunnel}
+                  >
+                    <SelectTrigger className="w-auto min-w-[120px] h-8">
+                      <SelectValue placeholder="Не вибрано">
+                        {project.funnel ? project.funnel.name : "Не вибрано"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Не вибрано</SelectItem>
+                      {funnels.map((funnel) => (
+                        <SelectItem key={funnel.funnel_id} value={funnel.funnel_id.toString()}>
+                          {funnel.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Спадаюче меню для етапу */}
+                {project.funnel_id && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Етап:</span>
+                    <Select
+                      value={project.funnel_stage_id?.toString() || "none"}
+                      onValueChange={handleStageChange}
+                      disabled={updatingStage}
+                    >
+                      <SelectTrigger className="w-auto min-w-[120px] h-8">
+                        <SelectValue placeholder="Не вибрано">
+                          {project.funnel_stage ? project.funnel_stage.name : "Не вибрано"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Не вибрано</SelectItem>
+                        {currentStages.map((stage) => (
+                          <SelectItem key={stage.funnel_stage_id} value={stage.funnel_stage_id.toString()}>
+                            {stage.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
               </div>
             </div>
@@ -145,9 +266,17 @@ export default function ProjectDetailsComponent({ projectId }: ProjectDetailsCom
 
           {/* Права панель з інформацією про проект */}
           <div className="w-full xl:w-80 xl:max-w-sm xl:order-2 flex-shrink-0">
-            <ProjectInfoPanel project={project} />
+            <ProjectInfoPanel project={project} onEdit={handleEditProject} />
           </div>
         </div>
+
+        {/* Діалог редагування проекту */}
+        <ProjectEditDialog
+          project={project}
+          isOpen={isEditDialogOpen}
+          onClose={() => setIsEditDialogOpen(false)}
+          onSave={handleProjectUpdated}
+        />
       </div>
     </div>
   );

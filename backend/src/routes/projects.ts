@@ -22,4 +22,8 @@ router.post('/:id/services', ProjectController.addService);
 router.delete('/:id/services/:project_service_id', ProjectController.removeService);
 router.delete('/:id/services/by-service/:service_id', ProjectController.removeServiceByServiceId);
 
+// Project managers management
+router.post('/:id/managers', ProjectController.addSecondaryManager);
+router.delete('/:id/managers/:manager_id', ProjectController.removeSecondaryManager);
+
 export default router;
