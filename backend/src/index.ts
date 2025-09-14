@@ -22,6 +22,7 @@ import uploadRoutes from './routes/upload.js';
 import saleStatusTypeRoutes from './routes/saleStatusTypes.js';
 import subProjectStatusTypeRoutes from './routes/subProjectStatusTypes.js';
 import subProjectFunnelRoutes from './routes/subProjectFunnels.js';
+import settingsRoutes from './routes/settings.js';
 
 const app = express();
 
@@ -90,6 +91,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/sale-status-types', saleStatusTypeRoutes);
 app.use('/api/sub-project-status-types', subProjectStatusTypeRoutes);
 app.use('/api/sub-project-funnels', subProjectFunnelRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
