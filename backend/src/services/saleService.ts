@@ -20,7 +20,7 @@ const toSaleWithRelations = (
         0
     );
   const servicesTotal = sale.services.reduce(
-    (sum, item) => sum + item.service.price.toNumber(),
+    (sum, item) => sum + item.service.price.toNumber() * ((item as any).quantity || 1),
     0
   );
 
@@ -123,12 +123,10 @@ export class SaleService {
             }))
           } : undefined,
           services: services ? {
-            create: services.flatMap((s: { service_id: number; quantity?: number }) => {
-              const qty = Math.max(1, Math.round(Number(s.quantity ?? 1)));
-              return Array.from({ length: qty }).map(() => ({
-                service: { connect: { service_id: s.service_id } }
-              }));
-            })
+            create: services.map((s: { service_id: number; quantity?: number }) => ({
+              quantity: s.quantity || 1,
+              service: { connect: { service_id: s.service_id } }
+            }))
           } : undefined
         }
       });
@@ -189,12 +187,10 @@ export class SaleService {
         } : undefined,
         services: services ? {
           deleteMany: {},
-          create: services.flatMap(s => {
-            const qty = Math.max(1, Math.round(Number((s as any).quantity ?? 1)));
-            return Array.from({ length: qty }).map(() => ({
-              service: { connect: { service_id: s.service_id } }
-            }));
-          })
+          create: services.map((s: { service_id: number; quantity?: number }) => ({
+            quantity: s.quantity || 1,
+            service: { connect: { service_id: s.service_id } }
+          }))
         } : undefined
       }
     });

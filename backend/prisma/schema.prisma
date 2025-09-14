@@ -161,6 +161,7 @@ model SaleProduct {
 model SaleService {
   sale_id    Int
   service_id Int
+  quantity   Float    @default(1)
   created_at DateTime @default(now())
   sale       Sale     @relation(fields: [sale_id], references: [sale_id], onDelete: Cascade)
   service    Service  @relation(fields: [service_id], references: [service_id], onDelete: Cascade)
