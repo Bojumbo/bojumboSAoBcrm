@@ -48,20 +48,42 @@ export default function ProductForm({ product, isOpen, onClose, onSave }: Produc
           price: product.price,
           unit_id: product.unit_id || undefined,
         });
-        
-        // Завантажуємо інформацію про склади
-        if (product.stocks) {
-          setStocks(product.stocks.map(stock => ({
-            warehouse_id: stock.warehouse_id,
-            quantity: stock.quantity
-          })));
-        }
       } else {
         // Створення нового товару
         resetForm();
       }
     }
   }, [isOpen, product]);
+
+  // Окремий useEffect для ініціалізації складів після завантаження warehouses
+  useEffect(() => {
+    if (warehouses.length > 0) {
+      if (product) {
+        // Редагування існуючого товару - показуємо всі склади
+        console.log('Initializing stocks for editing product:', product.product_id);
+        console.log('Available warehouses:', warehouses);
+        console.log('Product stocks:', product.stocks);
+        
+        const allWarehouseStocks = warehouses.map(warehouse => {
+          const existingStock = product.stocks?.find(stock => stock.warehouse_id === warehouse.warehouse_id);
+          return {
+            warehouse_id: warehouse.warehouse_id,
+            quantity: existingStock ? existingStock.quantity : 0
+          };
+        });
+        
+        console.log('Final stocks for form:', allWarehouseStocks);
+        setStocks(allWarehouseStocks);
+      } else {
+        // Створення нового товару - всі склади з нульовою кількістю
+        console.log('Initializing stocks for new product');
+        setStocks(warehouses.map(warehouse => ({
+          warehouse_id: warehouse.warehouse_id,
+          quantity: 0
+        })));
+      }
+    }
+  }, [warehouses, product]);
 
   const fetchUnits = async () => {
     try {
@@ -76,14 +98,6 @@ export default function ProductForm({ product, isOpen, onClose, onSave }: Produc
     try {
       const data = await productService.getWarehouses();
       setWarehouses(data);
-      
-      // Ініціалізуємо склади з нульовою кількістю для нового товару
-      if (!product) {
-        setStocks(data.map(warehouse => ({
-          warehouse_id: warehouse.warehouse_id,
-          quantity: 0
-        })));
-      }
     } catch (error) {
       console.error('Error fetching warehouses:', error);
     }
@@ -203,11 +217,29 @@ export default function ProductForm({ product, isOpen, onClose, onSave }: Produc
   };
 
   const handleStockChange = (warehouseId: number, quantity: number) => {
-    setStocks(prev => prev.map(stock => 
-      stock.warehouse_id === warehouseId 
-        ? { ...stock, quantity: Math.max(0, quantity) }
-        : stock
-    ));
+    console.log('Stock change:', { warehouseId, quantity });
+    
+    setStocks(prev => {
+      const existingIndex = prev.findIndex(stock => stock.warehouse_id === warehouseId);
+      console.log('Current stocks:', prev);
+      console.log('Existing index:', existingIndex);
+      
+      if (existingIndex >= 0) {
+        // Оновлюємо існуючий склад
+        const newStocks = prev.map(stock => 
+          stock.warehouse_id === warehouseId 
+            ? { ...stock, quantity: Math.max(0, quantity) }
+            : stock
+        );
+        console.log('Updated stocks:', newStocks);
+        return newStocks;
+      } else {
+        // Додаємо новий склад
+        const newStocks = [...prev, { warehouse_id: warehouseId, quantity: Math.max(0, quantity) }];
+        console.log('Added new stock:', newStocks);
+        return newStocks;
+      }
+    });
   };
 
   const selectedUnit = units.find(unit => unit.unit_id === formData.unit_id);

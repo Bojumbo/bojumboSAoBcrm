@@ -397,7 +397,12 @@ export default function ProductsTable({
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <Package className="h-4 w-4 text-muted-foreground" />
-                          {product.name}
+                          <button
+                            onClick={() => onProductSelect?.(product)}
+                            className="text-left hover:text-blue-600 hover:underline transition-colors cursor-pointer"
+                          >
+                            {product.name}
+                          </button>
                         </div>
                       </TableCell>
                       <TableCell>
