@@ -6,20 +6,23 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Send, MessageSquare, User, Clock, Paperclip, X, Download } from 'lucide-react';
+import { Send, MessageSquare, User, Clock, Paperclip, X, Download, Trash2 } from 'lucide-react';
 import { ProjectComment } from '@/types/projects';
 import { getAuthToken, redirectToLogin } from '@/lib/auth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProjectChatProps {
   projectId: number;
 }
 
 export default function ProjectChat({ projectId }: ProjectChatProps) {
+  const { user } = useAuth();
   const [comments, setComments] = useState<ProjectComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -167,6 +170,64 @@ export default function ProjectChat({ projectId }: ProjectChatProps) {
     }
   };
 
+  const handleDeleteComment = async (commentId: number) => {
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
+
+    // Підтвердження видалення
+    if (!window.confirm('Ви впевнені, що хочете видалити це повідомлення?')) {
+      return;
+    }
+
+    try {
+      setDeletingCommentId(commentId);
+      const token = getAuthToken();
+      
+      if (!token) {
+        redirectToLogin();
+        return;
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/comments/projects/${projectId}/${commentId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.status === 401 || response.status === 403) {
+        redirectToLogin();
+        return;
+      }
+
+      if (response.ok) {
+        // Позначаємо коментар як видалений замість повного видалення
+        setComments(prevComments => 
+          prevComments.map(comment => 
+            comment.comment_id === commentId 
+              ? { ...comment, is_deleted: true, content: '', file_name: undefined, file_url: undefined }
+              : comment
+          )
+        );
+      } else {
+        console.error('Failed to delete comment:', response.status);
+        const errorText = await response.text();
+        console.error('Error details:', errorText);
+        alert('Помилка при видаленні повідомлення. Спробуйте ще раз.');
+      }
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      alert('Помилка при видаленні повідомлення. Перевірте підключення до інтернету.');
+    } finally {
+      setDeletingCommentId(null);
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -247,127 +308,150 @@ export default function ProjectChat({ projectId }: ProjectChatProps) {
                     <User className="h-3 w-3 md:h-4 md:w-4 text-primary" />
                   </div>
                   <div className="flex-1 space-y-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-xs md:text-sm truncate">
-                        {comment.manager ? 
-                          `${comment.manager.first_name} ${comment.manager.last_name}` : 
-                          'Невідомий користувач'
-                        }
-                      </span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1 flex-shrink-0">
-                        <Clock className="h-2 w-2 md:h-3 md:w-3" />
-                        {formatDate(comment.created_at)}
-                      </span>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-xs md:text-sm truncate">
+                          {comment.manager ? 
+                            `${comment.manager.first_name} ${comment.manager.last_name}` : 
+                            'Невідомий користувач'
+                          }
+                        </span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1 flex-shrink-0">
+                          <Clock className="h-2 w-2 md:h-3 md:w-3" />
+                          {formatDate(comment.created_at)}
+                        </span>
+                      </div>
+                      {/* Кнопка видалення для власних коментарів (тільки якщо коментар не видалений) */}
+                      {user && comment.manager && comment.manager.manager_id === user.manager_id && !comment.is_deleted && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 opacity-50 hover:opacity-100 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteComment(comment.comment_id)}
+                          disabled={deletingCommentId === comment.comment_id}
+                          title="Видалити повідомлення"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                     <div className="bg-muted/50 rounded-lg p-2 md:p-3 space-y-2">
-                      {comment.content && (
-                        <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{comment.content}</p>
-                      )}
-                      {comment.file_name && comment.file_url && (
-                        <div className="flex items-center gap-2 text-xs md:text-sm bg-background/50 rounded p-2 border">
-                          <Paperclip className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-                          <span className="flex-1 truncate">{comment.file_name}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={async () => {
-                              try {
-                                if (!comment.file_url) {
-                                  throw new Error('File URL not found');
-                                }
-                                
-                                console.log('=== FILE DOWNLOAD DEBUG ===');
-                                console.log('Original file_url:', comment.file_url);
-                                console.log('File name:', comment.file_name);
-                                console.log('Process env API URL:', process.env.NEXT_PUBLIC_API_URL);
-                                
-                                // Правильно побудувати URL файлу
-                                let baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-                                
-                                // Видалити /api з baseUrl якщо є
-                                if (baseUrl.endsWith('/api')) {
-                                  baseUrl = baseUrl.replace('/api', '');
-                                }
-                                
-                                console.log('Base URL after cleanup:', baseUrl);
-                                
-                                let fileUrl = comment.file_url;
-                                
-                                // Видалити /api/ якщо є в URL
-                                if (fileUrl.includes('/api/uploads/')) {
-                                  fileUrl = fileUrl.replace('/api/uploads/', '/uploads/');
-                                }
-                                
-                                // Переконатися що URL починається з /uploads/
-                                if (!fileUrl.startsWith('/uploads/')) {
-                                  fileUrl = `/uploads/${fileUrl.replace(/^\/+/, '')}`;
-                                }
-                                
-                                console.log('Processed file_url:', fileUrl);
-                                
-                                // Правильно закодувати URL для запобігання проблем з пробілами та спецсимволами
-                                const pathParts = fileUrl.split('/');
-                                const fileName = pathParts[pathParts.length - 1];
-                                const encodedFileName = encodeURIComponent(fileName);
-                                const encodedFileUrl = `/uploads/${encodedFileName}`;
-                                
-                                const fullUrl = `${baseUrl}${encodedFileUrl}`;
-                                console.log('File name extracted:', fileName);
-                                console.log('Encoded file name:', encodedFileName);
-                                console.log('Final URL:', fullUrl);
-                                
-                                // Спробувати завантажити файл через fetch
-                                const response = await fetch(fullUrl);
-                                console.log('Response status:', response.status);
-                                console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-                                
-                                if (response.ok) {
-                                  const blob = await response.blob();
-                                  const url = window.URL.createObjectURL(blob);
-                                  const link = document.createElement('a');
-                                  link.href = url;
-                                  if (comment.file_name) {
-                                    link.download = comment.file_name;
+                      {comment.is_deleted ? (
+                        <p className="text-xs md:text-sm text-muted-foreground italic">
+                          Це повідомлення було видалено
+                        </p>
+                      ) : (
+                        <>
+                          {comment.content && (
+                            <p className="text-xs md:text-sm whitespace-pre-wrap break-words">{comment.content}</p>
+                          )}
+                          {comment.file_name && comment.file_url && (
+                            <div className="flex items-center gap-2 text-xs md:text-sm bg-background/50 rounded p-2 border">
+                              <Paperclip className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+                              <span className="flex-1 truncate">{comment.file_name}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={async () => {
+                                  try {
+                                    if (!comment.file_url) {
+                                      throw new Error('File URL not found');
+                                    }
+                                    
+                                    console.log('=== FILE DOWNLOAD DEBUG ===');
+                                    console.log('Original file_url:', comment.file_url);
+                                    console.log('File name:', comment.file_name);
+                                    console.log('Process env API URL:', process.env.NEXT_PUBLIC_API_URL);
+                                    
+                                    // Правильно побудувати URL файлу
+                                    let baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+                                    
+                                    // Видалити /api з baseUrl якщо є
+                                    if (baseUrl.endsWith('/api')) {
+                                      baseUrl = baseUrl.replace('/api', '');
+                                    }
+                                    
+                                    console.log('Base URL after cleanup:', baseUrl);
+                                    
+                                    let fileUrl = comment.file_url;
+                                    
+                                    // Видалити /api/ якщо є в URL
+                                    if (fileUrl.includes('/api/uploads/')) {
+                                      fileUrl = fileUrl.replace('/api/uploads/', '/uploads/');
+                                    }
+                                    
+                                    // Переконатися що URL починається з /uploads/
+                                    if (!fileUrl.startsWith('/uploads/')) {
+                                      fileUrl = `/uploads/${fileUrl.replace(/^\/+/, '')}`;
+                                    }
+                                    
+                                    console.log('Processed file_url:', fileUrl);
+                                    
+                                    // Правильно закодувати URL для запобігання проблем з пробілами та спецсимволами
+                                    const pathParts = fileUrl.split('/');
+                                    const fileName = pathParts[pathParts.length - 1];
+                                    const encodedFileName = encodeURIComponent(fileName);
+                                    const encodedFileUrl = `/uploads/${encodedFileName}`;
+                                    
+                                    const fullUrl = `${baseUrl}${encodedFileUrl}`;
+                                    console.log('File name extracted:', fileName);
+                                    console.log('Encoded file name:', encodedFileName);
+                                    console.log('Final URL:', fullUrl);
+                                    
+                                    // Спробувати завантажити файл через fetch
+                                    const response = await fetch(fullUrl);
+                                    console.log('Response status:', response.status);
+                                    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+                                    
+                                    if (response.ok) {
+                                      const blob = await response.blob();
+                                      const url = window.URL.createObjectURL(blob);
+                                      const link = document.createElement('a');
+                                      link.href = url;
+                                      if (comment.file_name) {
+                                        link.download = comment.file_name;
+                                      }
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      document.body.removeChild(link);
+                                      window.URL.revokeObjectURL(url);
+                                    } else {
+                                      console.error('File download failed:', response.status, response.statusText);
+                                      // Fallback - просто відкрити в новій вкладці
+                                      window.open(fullUrl, '_blank');
+                                    }
+                                  } catch (error) {
+                                    console.error('Error downloading file:', error);
+                                    // Fallback - спробувати відкрити безпосередньо
+                                    if (comment.file_url) {
+                                      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+                                      let fileUrl = comment.file_url;
+                                      
+                                      if (fileUrl.includes('/api/uploads/')) {
+                                        fileUrl = fileUrl.replace('/api/uploads/', '/uploads/');
+                                      }
+                                      
+                                      if (!fileUrl.startsWith('/uploads/')) {
+                                        fileUrl = `/uploads/${fileUrl.replace(/^\/+/, '')}`;
+                                      }
+                                      
+                                      // Правильно закодувати URL
+                                      const pathParts = fileUrl.split('/');
+                                      const fileName = pathParts[pathParts.length - 1];
+                                      const encodedFileName = encodeURIComponent(fileName);
+                                      const encodedFileUrl = `/uploads/${encodedFileName}`;
+                                      
+                                      window.open(`${baseUrl}${encodedFileUrl}`, '_blank');
+                                    }
                                   }
-                                  document.body.appendChild(link);
-                                  link.click();
-                                  document.body.removeChild(link);
-                                  window.URL.revokeObjectURL(url);
-                                } else {
-                                  console.error('File download failed:', response.status, response.statusText);
-                                  // Fallback - просто відкрити в новій вкладці
-                                  window.open(fullUrl, '_blank');
-                                }
-                              } catch (error) {
-                                console.error('Error downloading file:', error);
-                                // Fallback - спробувати відкрити безпосередньо
-                                if (comment.file_url) {
-                                  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-                                  let fileUrl = comment.file_url;
-                                  
-                                  if (fileUrl.includes('/api/uploads/')) {
-                                    fileUrl = fileUrl.replace('/api/uploads/', '/uploads/');
-                                  }
-                                  
-                                  if (!fileUrl.startsWith('/uploads/')) {
-                                    fileUrl = `/uploads/${fileUrl.replace(/^\/+/, '')}`;
-                                  }
-                                  
-                                  // Правильно закодувати URL
-                                  const pathParts = fileUrl.split('/');
-                                  const fileName = pathParts[pathParts.length - 1];
-                                  const encodedFileName = encodeURIComponent(fileName);
-                                  const encodedFileUrl = `/uploads/${encodedFileName}`;
-                                  
-                                  window.open(`${baseUrl}${encodedFileUrl}`, '_blank');
-                                }
-                              }
-                            }}
-                          >
-                            <Download className="h-3 w-3" />
-                          </Button>
-                        </div>
+                                }}
+                              >
+                                <Download className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
