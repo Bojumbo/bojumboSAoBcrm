@@ -41,7 +41,7 @@ export interface ProductWithRelations extends Product {
 
 export interface CreateProductRequest {
   name: string;
-  sku: string;
+  sku?: string; // Робимо необов'язковим для автогенерації
   description?: string;
   price: number;
   unit_id?: number;

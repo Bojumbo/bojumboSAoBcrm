@@ -4,7 +4,8 @@ import { ProductService } from '../services/productService.js';
 export class ProductController {
   static async getAll(req: Request, res: Response) {
     try {
-      const products = await ProductService.getAll();
+      const searchQuery = req.query.search as string;
+      const products = await ProductService.getAll(searchQuery);
 
       res.json({
         success: true,
@@ -60,8 +61,25 @@ export class ProductController {
         success: true,
         data: product
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create product error:', error);
+      
+      // Перевіряємо чи це наша кастомна помилка про дублювання SKU
+      if (error.message && error.message.includes('Артикул (SKU) вже існує')) {
+        return res.status(400).json({
+          success: false,
+          error: error.message
+        });
+      }
+      
+      // Перевіряємо чи це помилка валідації Prisma
+      if (error.code === 'P2002') {
+        return res.status(400).json({
+          success: false,
+          error: 'Дані не унікальні. Можливо, артикул вже використовується.'
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: 'Internal server error'
@@ -93,8 +111,25 @@ export class ProductController {
         success: true,
         data: product
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Update product error:', error);
+      
+      // Перевіряємо чи це наша кастомна помилка про дублювання SKU
+      if (error.message && error.message.includes('Артикул (SKU) вже існує')) {
+        return res.status(400).json({
+          success: false,
+          error: error.message
+        });
+      }
+      
+      // Перевіряємо чи це помилка валідації Prisma
+      if (error.code === 'P2002') {
+        return res.status(400).json({
+          success: false,
+          error: 'Дані не унікальні. Можливо, артикул вже використовується.'
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: 'Internal server error'

@@ -27,6 +27,7 @@ interface ProductsTableProps {
   onProductSelect?: (product: ProductWithRelations) => void;
   onCreateProduct?: () => void;
   onEditProduct?: (product: ProductWithRelations) => void;
+  refreshKey?: number;
 }
 
 type SortField = 'name' | 'price' | 'created_at' | 'stock';
@@ -35,7 +36,8 @@ type SortOrder = 'asc' | 'desc';
 export default function ProductsTable({ 
   onProductSelect, 
   onCreateProduct, 
-  onEditProduct 
+  onEditProduct,
+  refreshKey
 }: ProductsTableProps) {
   const [products, setProducts] = useState<ProductWithRelations[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -50,10 +52,39 @@ export default function ProductsTable({
     fetchUnits();
   }, []);
 
+  // Оновлення при зміні refreshKey
+  useEffect(() => {
+    if (refreshKey && refreshKey > 0) {
+      fetchProductsWithSearch();
+    }
+  }, [refreshKey]);
+
+  // Дебаунсинг для пошуку
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchProductsWithSearch();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
       const data = await productService.getAll();
+      setProducts(data);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchProductsWithSearch = async () => {
+    try {
+      setLoading(true);
+      const data = await productService.getAll(searchTerm || undefined);
       setProducts(data);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -80,7 +111,7 @@ export default function ProductsTable({
 
     try {
       await productService.delete(productId);
-      await fetchProducts(); // Оновлюємо список
+      await fetchProductsWithSearch(); // Оновлюємо список з поточним пошуком
     } catch (error) {
       console.error('Error deleting product:', error);
       alert('Помилка при видаленні товару');
@@ -120,19 +151,14 @@ export default function ProductsTable({
     return sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
   };
 
-  // Фільтрація та сортування
+  // Фільтрація та сортування (пошук тепер серверний)
   const filteredAndSortedProducts = products
     .filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.unit?.name.toLowerCase().includes(searchTerm.toLowerCase());
-      
       const matchesUnit = selectedUnit === 'all' || 
                          product.unit_id?.toString() === selectedUnit ||
                          (!product.unit_id && selectedUnit === 'no-unit');
       
-      return matchesSearch && matchesUnit;
+      return matchesUnit;
     })
     .sort((a, b) => {
       let aValue: any, bValue: any;
@@ -199,7 +225,7 @@ export default function ProductsTable({
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Пошук товарів..."
+                placeholder="Пошук за назвою або SKU..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"

@@ -39,8 +39,37 @@ class ProductService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('API Error:', errorText);
-      throw new Error(`HTTP error! status: ${response.status}`);
+      
+      // Спочатку перевіряємо, чи це статус 400 (валідація)
+      const isValidationError = response.status === 400;
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        
+        // Якщо успішно парсили JSON і є поле error
+        if (errorData && typeof errorData === 'object' && errorData.error) {
+          // Не логуємо помилки валідації
+          if (!isValidationError) {
+            console.error('API Error:', errorText);
+          }
+          throw new Error(errorData.error);
+        }
+        
+        // Якщо JSON парсився, але немає поля error
+        console.error('API Error (no error field):', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+        
+      } catch (parseError) {
+        // Перевіряємо, чи це помилка парсингу, чи помилка що ми кинули вище
+        if (parseError instanceof Error && parseError.message.includes('Артикул')) {
+          // Це наша кинута помилка, передаємо далі
+          throw parseError;
+        }
+        
+        // Це справжня помилка парсингу JSON
+        console.error('API Error (JSON parse failed):', errorText, 'Parse error:', parseError);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
     }
 
     const result = await response.json();
@@ -54,8 +83,9 @@ class ProductService {
     return result;
   }
 
-  async getAll(): Promise<ProductWithRelations[]> {
-    return this.fetchWithAuth('/products');
+  async getAll(searchQuery?: string): Promise<ProductWithRelations[]> {
+    const url = searchQuery ? `/products?search=${encodeURIComponent(searchQuery)}` : '/products';
+    return this.fetchWithAuth(url);
   }
 
   async getById(id: number): Promise<ProductWithRelations> {

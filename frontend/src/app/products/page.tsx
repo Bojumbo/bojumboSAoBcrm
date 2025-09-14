@@ -51,11 +51,12 @@ export default function ProductsPage() {
 
   return (
     <DashboardLayout>
-      <div key={refreshKey} className="h-full overflow-auto p-6">
+      <div className="h-full overflow-auto p-6">
         <ProductsTable
           onProductSelect={handleProductSelect}
           onCreateProduct={handleCreateProduct}
           onEditProduct={handleEditProduct}
+          refreshKey={refreshKey}
         />
       </div>
 

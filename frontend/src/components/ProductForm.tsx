@@ -108,8 +108,9 @@ export default function ProductForm({ product, isOpen, onClose, onSave }: Produc
       newErrors.name = 'Назва товару є обов\'язковою';
     }
 
-    if (!formData.sku.trim()) {
-      newErrors.sku = 'Артикул товару є обов\'язковим';
+    // SKU не обов'язкове - може бути автогенероване
+    if (formData.sku && formData.sku.trim() && formData.sku.length < 2) {
+      newErrors.sku = 'Артикул повинен містити принаймні 2 символи';
     }
 
     if (formData.price <= 0) {
@@ -149,21 +150,56 @@ export default function ProductForm({ product, isOpen, onClose, onSave }: Produc
       
       onSave();
       onClose();
-    } catch (error) {
-      console.error('Error saving product:', error);
-      setErrors({ submit: 'Помилка при збереженні товару' });
+    } catch (error: any) {
+      // Не логуємо помилки валідації як неочікувані
+      const isValidationError = error.message && (
+        error.message.includes('Артикул (SKU) вже існує') ||
+        error.message.includes('не унікальні') ||
+        error.message.includes('вже використовується')
+      );
+      
+      if (!isValidationError) {
+        console.error('Error saving product:', error);
+      }
+      
+      // Перевіряємо чи це помилка дублювання SKU
+      if (error.message && (
+        error.message.includes('Артикул (SKU) вже існує') ||
+        error.message.includes('не унікальні') ||
+        error.message.includes('вже використовується')
+      )) {
+        setErrors({ sku: 'Цей артикул вже використовується. Будь ласка, оберіть інший або згенеруйте новий.' });
+      } else if (error.message && error.message.toLowerCase().includes('sku')) {
+        setErrors({ sku: 'Помилка з артикулом товару: ' + error.message });
+      } else {
+        setErrors({ submit: 'Помилка при збереженні товару: ' + (error.message || 'Невідома помилка') });
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleInputChange = (field: keyof CreateProductRequest, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // Спеціальна обробка для unit_id
+    if (field === 'unit_id') {
+      const processedValue = value === "null" ? undefined : (value ? parseInt(value) : undefined);
+      setFormData(prev => ({ ...prev, [field]: processedValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
     
     // Очищаємо помилку для поля
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
+  };
+
+  const generateSKU = () => {
+    // Створюємо SKU тільки з цифр
+    const timestamp = Date.now().toString();
+    const sku = timestamp.slice(-6); // Беремо останні 6 цифр
+    
+    handleInputChange('sku', sku);
   };
 
   const handleStockChange = (warehouseId: number, quantity: number) => {
@@ -219,17 +255,30 @@ export default function ProductForm({ product, isOpen, onClose, onSave }: Produc
 
               {/* Артикул */}
               <div className="space-y-2">
-                <Label htmlFor="sku">Артикул (SKU) *</Label>
-                <Input
-                  id="sku"
-                  value={formData.sku}
-                  onChange={(e) => handleInputChange('sku', e.target.value)}
-                  placeholder="Введіть артикул товару"
-                  className={errors.sku ? 'border-red-500' : ''}
-                />
+                <Label htmlFor="sku">Артикул (SKU)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="sku"
+                    value={formData.sku}
+                    onChange={(e) => handleInputChange('sku', e.target.value)}
+                    placeholder="Введіть артикул (літери/цифри) або залиште порожнім"
+                    className={errors.sku ? 'border-red-500' : ''}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={generateSKU}
+                    className="whitespace-nowrap"
+                  >
+                    Згенерувати
+                  </Button>
+                </div>
                 {errors.sku && (
                   <p className="text-sm text-red-500">{errors.sku}</p>
                 )}
+                <p className="text-xs text-muted-foreground">
+                  Автогенерація створює цифровий код. Вручну можна вводити будь-які символи.
+                </p>
               </div>
 
               {/* Опис */}
@@ -269,8 +318,8 @@ export default function ProductForm({ product, isOpen, onClose, onSave }: Produc
                 <div className="space-y-2">
                   <Label htmlFor="unit">Одиниця виміру</Label>
                   <Select 
-                    value={formData.unit_id?.toString() || ''} 
-                    onValueChange={(value) => handleInputChange('unit_id', value ? parseInt(value) : undefined)}
+                    value={formData.unit_id ? formData.unit_id.toString() : "null"} 
+                    onValueChange={(value) => handleInputChange('unit_id', value)}
                   >
                     <SelectTrigger>
                       <div className="flex items-center gap-2">
@@ -279,7 +328,7 @@ export default function ProductForm({ product, isOpen, onClose, onSave }: Produc
                       </div>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Без одиниці</SelectItem>
+                      <SelectItem value="null">Без одиниці</SelectItem>
                       {units.map(unit => (
                         <SelectItem key={unit.unit_id} value={unit.unit_id.toString()}>
                           {unit.name}
