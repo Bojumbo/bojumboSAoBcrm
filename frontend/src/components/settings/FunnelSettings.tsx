@@ -20,6 +20,7 @@ export default function FunnelSettings() {
   const [newFunnelName, setNewFunnelName] = useState('');
   const [newStageName, setNewStageName] = useState('');
   const [activeNewStageInput, setActiveNewStageInput] = useState<number | null>(null);
+  const [movingStageId, setMovingStageId] = useState<number | null>(null);
 
   // Завантаження воронок при ініціалізації
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function FunnelSettings() {
     setIsLoading(true);
     try {
       const funnel = funnels.find(f => f.funnel_id === funnelId);
-      const nextOrder = funnel ? funnel.stages.length + 1 : 1;
+      const nextOrder = funnel ? Math.max(...funnel.stages.map(s => s.order), 0) + 1 : 1;
       
       const newStage = await funnelService.createStage(funnelId, newStageName, nextOrder);
       
@@ -127,49 +128,65 @@ export default function FunnelSettings() {
   };
 
   const moveStage = async (funnelId: number, stageId: number, direction: 'up' | 'down') => {
+    console.log('Moving stage:', { funnelId, stageId, direction });
+    
     const funnel = funnels.find(f => f.funnel_id === funnelId);
-    if (!funnel) return;
+    if (!funnel) {
+      console.error('Funnel not found:', funnelId);
+      return;
+    }
 
     const sortedStages = [...funnel.stages].sort((a, b) => a.order - b.order);
     const currentIndex = sortedStages.findIndex(s => s.funnel_stage_id === stageId);
     
+    console.log('Current stage index:', currentIndex, 'Total stages:', sortedStages.length);
+    
     if ((direction === 'up' && currentIndex === 0) || 
         (direction === 'down' && currentIndex === sortedStages.length - 1)) {
+      console.log('Cannot move stage in this direction');
       return;
     }
 
     const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    const currentStage = sortedStages[currentIndex];
-    const targetStage = sortedStages[newIndex];
+    
+    // Поміняти місцями етапи в масиві
+    const newSortedStages = [...sortedStages];
+    [newSortedStages[currentIndex], newSortedStages[newIndex]] = [newSortedStages[newIndex], newSortedStages[currentIndex]];
+    
+    // Присвоїти нові порядкові номери
+    const updatedStages = newSortedStages.map((stage, index) => ({
+      ...stage,
+      order: index + 1
+    }));
 
+    console.log('Updated stages order:', updatedStages.map(s => ({ id: s.funnel_stage_id, name: s.name, order: s.order })));
+
+    setMovingStageId(stageId);
     setIsLoading(true);
     try {
-      // Оновлюємо порядок етапів
-      await funnelService.updateStage(currentStage.funnel_stage_id, { order: targetStage.order });
-      await funnelService.updateStage(targetStage.funnel_stage_id, { order: currentStage.order });
-
-      // Оновлюємо локальний стан
+      // Оновити локальний стан спочатку для швидкої реакції UI
       setFunnels(prev => prev.map(f => 
         f.funnel_id === funnelId 
-          ? {
-              ...f, 
-              stages: f.stages.map(s => {
-                if (s.funnel_stage_id === currentStage.funnel_stage_id) {
-                  return { ...s, order: targetStage.order };
-                }
-                if (s.funnel_stage_id === targetStage.funnel_stage_id) {
-                  return { ...s, order: currentStage.order };
-                }
-                return s;
-              })
-            }
+          ? { ...f, stages: updatedStages }
           : f
       ));
+
+      // Оновити порядок кожного етапу на сервері
+      const updatePromises = updatedStages.map(stage => 
+        funnelService.updateStage(stage.funnel_stage_id, { order: stage.order })
+      );
+      
+      await Promise.all(updatePromises);
+
+      console.log('Етапи успішно переміщено!');
     } catch (error) {
       console.error('Помилка переміщення етапу:', error);
       alert('Помилка переміщення етапу. Спробуйте ще раз.');
+      // Відновити попередній стан при помилці
+      await loadFunnels();
     } finally {
       setIsLoading(false);
+      setMovingStageId(null);
     }
   };
 
@@ -277,33 +294,44 @@ export default function FunnelSettings() {
                       {funnel.stages
                         .sort((a, b) => a.order - b.order)
                         .map((stage, index) => (
-                          <Badge key={stage.funnel_stage_id} variant="secondary" className="flex items-center gap-2">
+                          <Badge 
+                            key={stage.funnel_stage_id} 
+                            variant="secondary" 
+                            className={`flex items-center gap-2 ${
+                              movingStageId === stage.funnel_stage_id 
+                                ? 'opacity-50 bg-blue-100 dark:bg-blue-900' 
+                                : ''
+                            }`}
+                          >
                             <span>{index + 1}. {stage.name}</span>
                             <div className="flex items-center gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-4 w-4 p-0"
+                                className="h-4 w-4 p-0 hover:bg-blue-100 dark:hover:bg-blue-900"
                                 onClick={() => moveStage(funnel.funnel_id, stage.funnel_stage_id, 'up')}
-                                disabled={index === 0 || isLoading}
+                                disabled={index === 0 || isLoading || movingStageId === stage.funnel_stage_id}
+                                title="Перемістити вгору"
                               >
                                 <ArrowUp className="h-3 w-3" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-4 w-4 p-0"
+                                className="h-4 w-4 p-0 hover:bg-blue-100 dark:hover:bg-blue-900"
                                 onClick={() => moveStage(funnel.funnel_id, stage.funnel_stage_id, 'down')}
-                                disabled={index === funnel.stages.length - 1 || isLoading}
+                                disabled={index === funnel.stages.length - 1 || isLoading || movingStageId === stage.funnel_stage_id}
+                                title="Перемістити вниз"
                               >
                                 <ArrowDown className="h-3 w-3" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-4 w-4 p-0 text-destructive"
+                                className="h-4 w-4 p-0 text-destructive hover:bg-red-100 dark:hover:bg-red-900"
                                 onClick={() => deleteStage(funnel.funnel_id, stage.funnel_stage_id)}
                                 disabled={isLoading}
+                                title="Видалити етап"
                               >
                                 <X className="h-3 w-3" />
                               </Button>

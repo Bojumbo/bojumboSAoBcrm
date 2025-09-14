@@ -101,10 +101,13 @@ class FunnelService {
   }
 
   async updateStage(stageId: number, data: Partial<Pick<FunnelStage, 'name' | 'order'>>): Promise<FunnelStage> {
-    return this.fetchWithAuth(`/funnels/stages/${stageId}`, {
+    console.log('Updating stage:', stageId, 'with data:', data);
+    const result = await this.fetchWithAuth(`/funnels/stages/${stageId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+    console.log('Stage update result:', result);
+    return result;
   }
 
   async deleteStage(stageId: number): Promise<{ success: boolean; message: string }> {
