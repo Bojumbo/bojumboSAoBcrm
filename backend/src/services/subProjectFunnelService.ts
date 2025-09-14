@@ -96,4 +96,25 @@ export class SubProjectFunnelService {
       return false;
     }
   }
+
+  static async reorderStages(funnelId: number, stageOrders: { stage_id: number; order: number }[]): Promise<SubProjectFunnelStage[]> {
+    // Оновлюємо порядок кожного етапу
+    await Promise.all(
+      stageOrders.map(({ stage_id, order }) =>
+        prisma.subProjectFunnelStage.update({
+          where: { sub_project_funnel_stage_id: stage_id },
+          data: { order }
+        })
+      )
+    );
+
+    // Повертаємо оновлені етапи
+    return await prisma.subProjectFunnelStage.findMany({
+      where: { sub_project_funnel_id: funnelId },
+      orderBy: { order: 'asc' },
+      include: {
+        funnel: true
+      }
+    });
+  }
 }

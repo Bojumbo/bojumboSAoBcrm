@@ -14,6 +14,9 @@ router.post('/', SubProjectFunnelController.create);
 router.put('/:id', SubProjectFunnelController.update);
 router.delete('/:id', SubProjectFunnelController.delete);
 
+// Reorder stages
+router.put('/:id/reorder-stages', SubProjectFunnelController.reorderStages);
+
 // Funnel Stages CRUD operations
 router.get('/stages/all', SubProjectFunnelController.getAllStages);
 router.get('/stages/:id', SubProjectFunnelController.getStageById);

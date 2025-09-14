@@ -259,4 +259,37 @@ export class SubProjectFunnelController {
       });
     }
   }
+
+  static async reorderStages(req: Request, res: Response) {
+    try {
+      const funnelId = parseInt(req.params.id);
+      if (isNaN(funnelId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid funnel ID'
+        });
+      }
+
+      const { stage_orders } = req.body;
+      if (!Array.isArray(stage_orders)) {
+        return res.status(400).json({
+          success: false,
+          error: 'stage_orders must be an array'
+        });
+      }
+
+      const updatedStages = await SubProjectFunnelService.reorderStages(funnelId, stage_orders);
+
+      res.json({
+        success: true,
+        data: updatedStages
+      });
+    } catch (error) {
+      console.error('Reorder sub-project funnel stages error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
 }

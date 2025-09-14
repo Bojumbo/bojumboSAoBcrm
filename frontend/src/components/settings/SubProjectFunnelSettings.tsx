@@ -8,14 +8,14 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Funnel, Plus, Edit2, Trash2, Save, X, ArrowUp, ArrowDown } from 'lucide-react';
-import { funnelService } from '@/services/funnelService';
-import { Funnel as FunnelType, FunnelStage } from '@/types/projects';
+import { subProjectFunnelService } from '@/services/subProjectFunnelService';
+import { SubProjectFunnel, SubProjectFunnelStage } from '@/types/projects';
 
-export default function FunnelSettings() {
-  const [funnels, setFunnels] = useState<FunnelType[]>([]);
+export default function SubProjectFunnelSettings() {
+  const [funnels, setFunnels] = useState<SubProjectFunnel[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFunnels, setIsLoadingFunnels] = useState(true);
-  const [editingFunnel, setEditingFunnel] = useState<FunnelType | null>(null);
+  const [editingFunnel, setEditingFunnel] = useState<SubProjectFunnel | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newFunnelName, setNewFunnelName] = useState('');
   const [newStageName, setNewStageName] = useState('');
@@ -30,11 +30,11 @@ export default function FunnelSettings() {
   const loadFunnels = async () => {
     setIsLoadingFunnels(true);
     try {
-      const loadedFunnels = await funnelService.getAll();
+      const loadedFunnels = await subProjectFunnelService.getAll();
       setFunnels(loadedFunnels);
     } catch (error) {
-      console.error('Помилка завантаження воронок:', error);
-      alert('Помилка завантаження воронок. Спробуйте оновити сторінку.');
+      console.error('Помилка завантаження воронок підпроектів:', error);
+      alert('Помилка завантаження воронок підпроектів. Спробуйте оновити сторінку.');
     } finally {
       setIsLoadingFunnels(false);
     }
@@ -45,32 +45,32 @@ export default function FunnelSettings() {
 
     setIsLoading(true);
     try {
-      const newFunnel = await funnelService.create(newFunnelName);
+      const newFunnel = await subProjectFunnelService.create(newFunnelName);
       setFunnels(prev => [...prev, newFunnel]);
       setNewFunnelName('');
       setIsDialogOpen(false);
-      alert('Воронку успішно створено!');
+      alert('Воронку підпроектів успішно створено!');
     } catch (error) {
-      console.error('Помилка створення воронки:', error);
-      alert('Помилка створення воронки. Спробуйте ще раз.');
+      console.error('Помилка створення воронки підпроектів:', error);
+      alert('Помилка створення воронки підпроектів. Спробуйте ще раз.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const deleteFunnel = async (funnelId: number) => {
-    if (!confirm('Ви впевнені, що хочете видалити цю воронку? Ця дія незворотна.')) {
+    if (!confirm('Ви впевнені, що хочете видалити цю воронку підпроектів? Ця дія незворотна.')) {
       return;
     }
 
     setIsLoading(true);
     try {
-      await funnelService.delete(funnelId);
-      setFunnels(prev => prev.filter(f => f.funnel_id !== funnelId));
-      alert('Воронку успішно видалено!');
+      await subProjectFunnelService.delete(funnelId);
+      setFunnels(prev => prev.filter(f => f.sub_project_funnel_id !== funnelId));
+      alert('Воронку підпроектів успішно видалено!');
     } catch (error) {
-      console.error('Помилка видалення воронки:', error);
-      alert('Помилка видалення воронки. Можливо, вона використовується в проектах.');
+      console.error('Помилка видалення воронки підпроектів:', error);
+      alert('Помилка видалення воронки підпроектів. Можливо, вона використовується в підпроектах.');
     } finally {
       setIsLoading(false);
     }
@@ -81,69 +81,69 @@ export default function FunnelSettings() {
 
     setIsLoading(true);
     try {
-      const funnel = funnels.find(f => f.funnel_id === funnelId);
+      const funnel = funnels.find(f => f.sub_project_funnel_id === funnelId);
       const nextOrder = funnel && funnel.stages ? Math.max(...funnel.stages.map(s => s.order), 0) + 1 : 1;
       
-      const newStage = await funnelService.createStage(funnelId, newStageName, nextOrder);
+      const newStage = await subProjectFunnelService.createStage(funnelId, newStageName, nextOrder);
       
       setFunnels(prev => prev.map(f => 
-        f.funnel_id === funnelId 
+        f.sub_project_funnel_id === funnelId 
           ? { ...f, stages: [...(f.stages || []), newStage] }
           : f
       ));
       
       setNewStageName('');
       setActiveNewStageInput(null);
-      alert('Етап успішно додано!');
+      alert('Етап підпроекту успішно додано!');
     } catch (error) {
-      console.error('Помилка додавання етапу:', error);
-      alert('Помилка додавання етапу. Спробуйте ще раз.');
+      console.error('Помилка додавання етапу підпроекту:', error);
+      alert('Помилка додавання етапу підпроекту. Спробуйте ще раз.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const deleteStage = async (funnelId: number, stageId: number) => {
-    if (!confirm('Ви впевнені, що хочете видалити цей етап?')) {
+    if (!confirm('Ви впевнені, що хочете видалити цей етап підпроекту?')) {
       return;
     }
 
     setIsLoading(true);
     try {
-      await funnelService.deleteStage(stageId);
+      await subProjectFunnelService.deleteStage(stageId);
       
       setFunnels(prev => prev.map(f => 
-        f.funnel_id === funnelId 
-          ? { ...f, stages: (f.stages || []).filter(s => s.funnel_stage_id !== stageId) }
+        f.sub_project_funnel_id === funnelId 
+          ? { ...f, stages: (f.stages || []).filter(s => s.sub_project_funnel_stage_id !== stageId) }
           : f
       ));
       
-      alert('Етап успішно видалено!');
+      alert('Етап підпроекту успішно видалено!');
     } catch (error) {
-      console.error('Помилка видалення етапу:', error);
-      alert('Помилка видалення етапу. Можливо, він використовується в проектах.');
+      console.error('Помилка видалення етапу підпроекту:', error);
+      alert('Помилка видалення етапу підпроекту. Можливо, він використовується в підпроектах.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const moveStage = async (funnelId: number, stageId: number, direction: 'up' | 'down') => {
-    console.log('Moving stage:', { funnelId, stageId, direction });
+    console.log('Moving subproject stage:', { funnelId, stageId, direction });
     
-    const funnel = funnels.find(f => f.funnel_id === funnelId);
+    const funnel = funnels.find(f => f.sub_project_funnel_id === funnelId);
     if (!funnel) {
-      console.error('Funnel not found:', funnelId);
+      console.error('Subproject funnel not found:', funnelId);
       return;
     }
 
     const sortedStages = [...(funnel.stages || [])].sort((a, b) => a.order - b.order);
-    const currentIndex = sortedStages.findIndex(s => s.funnel_stage_id === stageId);
+    const currentIndex = sortedStages.findIndex(s => s.sub_project_funnel_stage_id === stageId);
     
-    console.log('Current stage index:', currentIndex, 'Total stages:', sortedStages.length);
+    console.log('Current subproject stage index:', currentIndex, 'Total stages:', sortedStages.length);
     
     if ((direction === 'up' && currentIndex === 0) || 
         (direction === 'down' && currentIndex === sortedStages.length - 1)) {
-      console.log('Cannot move stage in this direction');
+      console.log('Cannot move subproject stage in this direction');
       return;
     }
 
@@ -159,29 +159,29 @@ export default function FunnelSettings() {
       order: index + 1
     }));
 
-    console.log('Updated stages order:', updatedStages.map(s => ({ id: s.funnel_stage_id, name: s.name, order: s.order })));
+    console.log('Updated subproject stages order:', updatedStages.map(s => ({ id: s.sub_project_funnel_stage_id, name: s.name, order: s.order })));
 
     setMovingStageId(stageId);
     setIsLoading(true);
     try {
       // Оновити локальний стан спочатку для швидкої реакції UI
       setFunnels(prev => prev.map(f => 
-        f.funnel_id === funnelId 
+        f.sub_project_funnel_id === funnelId 
           ? { ...f, stages: updatedStages }
           : f
       ));
 
       // Оновити порядок кожного етапу на сервері
       const updatePromises = updatedStages.map(stage => 
-        funnelService.updateStage(stage.funnel_stage_id, { order: stage.order })
+        subProjectFunnelService.updateStage(stage.sub_project_funnel_stage_id, { order: stage.order })
       );
       
       await Promise.all(updatePromises);
 
-      console.log('Етапи успішно переміщено!');
+      console.log('Етапи підпроектів успішно переміщено!');
     } catch (error) {
-      console.error('Помилка переміщення етапу:', error);
-      alert('Помилка переміщення етапу. Спробуйте ще раз.');
+      console.error('Помилка переміщення етапу підпроекту:', error);
+      alert('Помилка переміщення етапу підпроекту. Спробуйте ще раз.');
       // Відновити попередній стан при помилці
       await loadFunnels();
     } finally {
@@ -195,7 +195,7 @@ export default function FunnelSettings() {
       <div className="space-y-6">
         <Card>
           <CardContent className="flex items-center justify-center p-6">
-            <p>Завантаження воронок...</p>
+            <p>Завантаження воронок підпроектів...</p>
           </CardContent>
         </Card>
       </div>
@@ -206,9 +206,9 @@ export default function FunnelSettings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Воронки проектів</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Воронки підпроектів</h2>
           <p className="text-muted-foreground">
-            Налаштуйте воронки продажів та їх етапи для відстеження прогресу проектів
+            Налаштуйте воронки та їх етапи для відстеження прогресу підпроектів
           </p>
         </div>
         
@@ -221,9 +221,9 @@ export default function FunnelSettings() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Створити нову воронку</DialogTitle>
+              <DialogTitle>Створити нову воронку підпроектів</DialogTitle>
               <DialogDescription>
-                Введіть назву для нової воронки продажів
+                Введіть назву для нової воронки підпроектів
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -233,7 +233,7 @@ export default function FunnelSettings() {
                   id="funnelName"
                   value={newFunnelName}
                   onChange={(e) => setNewFunnelName(e.target.value)}
-                  placeholder="Введіть назву воронки"
+                  placeholder="Введіть назву воронки підпроектів"
                 />
               </div>
               <div className="flex gap-2">
@@ -253,16 +253,16 @@ export default function FunnelSettings() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center p-6">
             <Funnel className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-medium mb-2">Немає воронок</p>
+            <p className="text-lg font-medium mb-2">Немає воронок підпроектів</p>
             <p className="text-muted-foreground text-center mb-4">
-              Створіть першу воронку для відстеження прогресу ваших проектів
+              Створіть першу воронку для відстеження прогресу ваших підпроектів
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
           {funnels.map((funnel) => (
-            <Card key={funnel.funnel_id}>
+            <Card key={funnel.sub_project_funnel_id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -280,7 +280,7 @@ export default function FunnelSettings() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => deleteFunnel(funnel.funnel_id)}
+                    onClick={() => deleteFunnel(funnel.sub_project_funnel_id)}
                     disabled={isLoading}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -295,10 +295,10 @@ export default function FunnelSettings() {
                         .sort((a, b) => a.order - b.order)
                         .map((stage, index) => (
                           <Badge 
-                            key={stage.funnel_stage_id} 
+                            key={stage.sub_project_funnel_stage_id} 
                             variant="secondary" 
                             className={`flex items-center gap-2 ${
-                              movingStageId === stage.funnel_stage_id 
+                              movingStageId === stage.sub_project_funnel_stage_id 
                                 ? 'opacity-50 bg-blue-100 dark:bg-blue-900' 
                                 : ''
                             }`}
@@ -309,8 +309,8 @@ export default function FunnelSettings() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-4 w-4 p-0 hover:bg-blue-100 dark:hover:bg-blue-900"
-                                onClick={() => moveStage(funnel.funnel_id, stage.funnel_stage_id, 'up')}
-                                disabled={index === 0 || isLoading || movingStageId === stage.funnel_stage_id}
+                                onClick={() => moveStage(funnel.sub_project_funnel_id, stage.sub_project_funnel_stage_id, 'up')}
+                                disabled={index === 0 || isLoading || movingStageId === stage.sub_project_funnel_stage_id}
                                 title="Перемістити вгору"
                               >
                                 <ArrowUp className="h-3 w-3" />
@@ -319,8 +319,8 @@ export default function FunnelSettings() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-4 w-4 p-0 hover:bg-blue-100 dark:hover:bg-blue-900"
-                                onClick={() => moveStage(funnel.funnel_id, stage.funnel_stage_id, 'down')}
-                                disabled={index === (funnel.stages?.length || 0) - 1 || isLoading || movingStageId === stage.funnel_stage_id}
+                                onClick={() => moveStage(funnel.sub_project_funnel_id, stage.sub_project_funnel_stage_id, 'down')}
+                                disabled={index === (funnel.stages?.length || 0) - 1 || isLoading || movingStageId === stage.sub_project_funnel_stage_id}
                                 title="Перемістити вниз"
                               >
                                 <ArrowDown className="h-3 w-3" />
@@ -329,7 +329,7 @@ export default function FunnelSettings() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-4 w-4 p-0 text-destructive hover:bg-red-100 dark:hover:bg-red-900"
-                                onClick={() => deleteStage(funnel.funnel_id, stage.funnel_stage_id)}
+                                onClick={() => deleteStage(funnel.sub_project_funnel_id, stage.sub_project_funnel_stage_id)}
                                 disabled={isLoading}
                                 title="Видалити етап"
                               >
@@ -345,22 +345,22 @@ export default function FunnelSettings() {
                 {/* Додавання нового етапу */}
                 <div className="flex gap-2 items-end mt-4">
                   <div className="flex-1">
-                    <Label htmlFor={`newStage-${funnel.funnel_id}`}>
+                    <Label htmlFor={`newStage-${funnel.sub_project_funnel_id}`}>
                       {(funnel.stages?.length || 0) === 0 ? 'Назва першого етапу' : 'Додати етап'}
                     </Label>
                     <Input
-                      id={`newStage-${funnel.funnel_id}`}
-                      value={activeNewStageInput === funnel.funnel_id ? newStageName : ''}
+                      id={`newStage-${funnel.sub_project_funnel_id}`}
+                      value={activeNewStageInput === funnel.sub_project_funnel_id ? newStageName : ''}
                       onChange={(e) => {
                         setNewStageName(e.target.value);
-                        setActiveNewStageInput(funnel.funnel_id);
+                        setActiveNewStageInput(funnel.sub_project_funnel_id);
                       }}
-                      placeholder={(funnel.stages?.length || 0) === 0 ? "Наприклад: Лід" : "Назва нового етапу"}
+                      placeholder={(funnel.stages?.length || 0) === 0 ? "Наприклад: Планування" : "Назва нового етапу"}
                     />
                   </div>
                   <Button
-                    onClick={() => addStageToFunnel(funnel.funnel_id)}
-                    disabled={!newStageName.trim() || isLoading || activeNewStageInput !== funnel.funnel_id}
+                    onClick={() => addStageToFunnel(funnel.sub_project_funnel_id)}
+                    disabled={!newStageName.trim() || isLoading || activeNewStageInput !== funnel.sub_project_funnel_id}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>

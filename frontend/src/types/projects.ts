@@ -15,6 +15,23 @@ export interface FunnelStage {
   projects?: Project[];
 }
 
+export interface SubProjectFunnel {
+  sub_project_funnel_id: number;
+  name: string;
+  created_at: string;
+  stages: SubProjectFunnelStage[];
+}
+
+export interface SubProjectFunnelStage {
+  sub_project_funnel_stage_id: number;
+  name: string;
+  sub_project_funnel_id: number;
+  order: number;
+  created_at: string;
+  funnel?: SubProjectFunnel;
+  subprojects?: SubProject[];
+}
+
 export interface Project {
   project_id: number;
   name: string;

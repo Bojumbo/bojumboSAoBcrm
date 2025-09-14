@@ -4,7 +4,8 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AccountSettings from '@/components/settings/AccountSettings';
 import FunnelSettings from '@/components/settings/FunnelSettings';
-import { User, Funnel } from 'lucide-react';
+import SubProjectFunnelSettings from '@/components/settings/SubProjectFunnelSettings';
+import { User, Funnel, GitBranch } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
@@ -18,7 +19,7 @@ export default function SettingsPage() {
         </div>
 
         <Tabs defaultValue="account" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
             <TabsTrigger value="account" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Основні</span>
@@ -26,6 +27,10 @@ export default function SettingsPage() {
             <TabsTrigger value="funnels" className="flex items-center gap-2">
               <Funnel className="h-4 w-4" />
               <span className="hidden sm:inline">Воронки проектів</span>
+            </TabsTrigger>
+            <TabsTrigger value="subproject-funnels" className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4" />
+              <span className="hidden sm:inline">Воронки підпроектів</span>
             </TabsTrigger>
           </TabsList>
 
@@ -35,6 +40,10 @@ export default function SettingsPage() {
 
           <TabsContent value="funnels" className="space-y-6">
             <FunnelSettings />
+          </TabsContent>
+
+          <TabsContent value="subproject-funnels" className="space-y-6">
+            <SubProjectFunnelSettings />
           </TabsContent>
         </Tabs>
       </div>
