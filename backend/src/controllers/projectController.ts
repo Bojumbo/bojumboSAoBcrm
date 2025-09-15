@@ -198,6 +198,22 @@ export class ProjectController {
     }
   }
 
+  // Update a product in a project
+  static async updateProduct(req: Request, res: Response) {
+    try {
+      if (!req.user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+      const project_product_id = parseInt(req.params.project_product_id);
+      const { quantity } = req.body || {};
+      if (isNaN(project_product_id) || !quantity) return res.status(400).json({ success: false, error: 'Invalid payload' });
+      const item = await ProjectService.updateProduct(project_product_id, { quantity: Number(quantity) });
+      if (!item) return res.status(404).json({ success: false, error: 'Not found' });
+      res.json({ success: true, data: item });
+    } catch (error) {
+      console.error('Update project product error:', error);
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+
   // Add a service to a project
   static async addService(req: Request, res: Response) {
     try {
@@ -223,6 +239,22 @@ export class ProjectController {
       res.json({ success: true, message: 'Removed' });
     } catch (error) {
       console.error('Remove project service error:', error);
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+
+  // Update a service in a project
+  static async updateService(req: Request, res: Response) {
+    try {
+      if (!req.user) return res.status(401).json({ success: false, error: 'Not authenticated' });
+      const project_service_id = parseInt(req.params.project_service_id);
+      const { quantity } = req.body || {};
+      if (isNaN(project_service_id) || quantity === undefined) return res.status(400).json({ success: false, error: 'Invalid payload' });
+      const item = await ProjectService.updateService(project_service_id, { quantity: Number(quantity) });
+      if (!item) return res.status(404).json({ success: false, error: 'Not found' });
+      res.json({ success: true, data: item });
+    } catch (error) {
+      console.error('Update project service error:', error);
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   }

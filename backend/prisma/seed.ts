@@ -97,7 +97,7 @@ async function main() {
   await prisma.manager.update({
     where: { manager_id: managers[1].manager_id }, // Іван Петров
     data: {
-      supervisors: {
+      managers_B: {
         connect: { manager_id: managers[0].manager_id } // Admin
       }
     }
@@ -106,7 +106,7 @@ async function main() {
   await prisma.manager.update({
     where: { manager_id: managers[2].manager_id }, // Марія Іванова
     data: {
-      supervisors: {
+      managers_B: {
         connect: { manager_id: managers[1].manager_id } // Іван Петров
       }
     }
@@ -115,7 +115,7 @@ async function main() {
   await prisma.manager.update({
     where: { manager_id: managers[3].manager_id }, // Олег Сидоренко
     data: {
-      supervisors: {
+      managers_B: {
         connect: [
           { manager_id: managers[1].manager_id }, // Іван Петров
           { manager_id: managers[4].manager_id }  // Анна Коваленко
@@ -127,7 +127,7 @@ async function main() {
   await prisma.manager.update({
     where: { manager_id: managers[4].manager_id }, // Анна Коваленко
     data: {
-      supervisors: {
+      managers_B: {
         connect: { manager_id: managers[0].manager_id } // Admin
       }
     }
@@ -170,6 +170,7 @@ async function main() {
         description: 'Потужний ноутбук для професіоналів',
         price: 1500.00,
         unit_id: units[0].unit_id,
+        sku: 'LPT-PRO-15-001',
       }
     }),
     prisma.product.create({
@@ -178,6 +179,7 @@ async function main() {
         description: 'Ергономічна бездротова миша',
         price: 50.00,
         unit_id: units[0].unit_id,
+        sku: 'MSE-WRL-X-001',
       }
     }),
   ]);
@@ -395,6 +397,7 @@ async function main() {
     data: {
       project_id: projects[0].project_id,
       service_id: services[0].service_id, // Консультація з ПЗ
+      // quantity буде за замовчуванням 1.0 згідно схеми
     }
   });
 
@@ -539,7 +542,7 @@ async function main() {
 main()
   .catch((e) => {
     console.error('❌ Error during seeding:', e);
-    process.exit(1);
+    throw e;
   })
   .finally(async () => {
     await prisma.$disconnect();

@@ -17,8 +17,10 @@ router.delete('/:id', ProjectController.delete);
 
 // Project products/services management
 router.post('/:id/products', ProjectController.addProduct);
+router.put('/:id/products/:project_product_id', ProjectController.updateProduct);
 router.delete('/:id/products/:project_product_id', ProjectController.removeProduct);
 router.post('/:id/services', ProjectController.addService);
+router.put('/:id/services/:project_service_id', ProjectController.updateService);
 router.delete('/:id/services/:project_service_id', ProjectController.removeService);
 router.delete('/:id/services/by-service/:service_id', ProjectController.removeServiceByServiceId);
 

@@ -112,6 +112,7 @@ export interface Sale {
 export interface Product {
   product_id: number;
   name: string;
+  sku: string;
   description?: string;
   price: string;
   unit_id?: number;
@@ -139,6 +140,7 @@ export interface ProjectService {
   project_service_id: number;
   project_id: number;
   service_id: number;
+  quantity: number;
   created_at: string;
   service: Service;
 }

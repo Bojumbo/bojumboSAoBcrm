@@ -1,12 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Project } from '@/types/projects';
-import { User, Building2, Users, DollarSign, Calendar, FileText, Edit } from 'lucide-react';
+import { Project, ProjectProduct, ProjectService } from '@/types/projects';
+import { User, Building2, Users, DollarSign, Calendar, FileText, Edit, TrendingUp, ShoppingCart } from 'lucide-react';
 
 interface ProjectInfoPanelProps {
   project: Project;
@@ -14,6 +14,51 @@ interface ProjectInfoPanelProps {
 }
 
 export default function ProjectInfoPanel({ project, onEdit }: ProjectInfoPanelProps) {
+  const [products, setProducts] = useState<ProjectProduct[]>([]);
+  const [services, setServices] = useState<ProjectService[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  // Завантаження товарів та послуг проекту
+  useEffect(() => {
+    const fetchProductsAndServices = async () => {
+      try {
+        setLoadingProducts(true);
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/projects/${project.project_id}/products`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const result = await response.json();
+          let data;
+          if (result.success && result.data) {
+            data = result.data;
+          } else {
+            data = result;
+          }
+          
+          setProducts(Array.isArray(data.products) ? data.products : Array.isArray(data) ? data : []);
+          setServices(Array.isArray(data.services) ? data.services : []);
+        } else {
+          setProducts([]);
+          setServices([]);
+        }
+      } catch (error) {
+        console.error('Error fetching products and services:', error);
+        setProducts([]);
+        setServices([]);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    fetchProductsAndServices();
+  }, [project.project_id]);
   const formatCurrency = (amount: string | number) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat('uk-UA', {
@@ -29,6 +74,36 @@ export default function ProjectInfoPanel({ project, onEdit }: ProjectInfoPanelPr
       month: 'long',
       day: 'numeric',
     });
+  };
+
+  // Розрахунок сум продажів
+  const calculateProductsTotal = () => {
+    return products.reduce((total, projectProduct) => {
+      const price = parseFloat(projectProduct.product?.price || '0');
+      const quantity = projectProduct.quantity || 0;
+      return total + (price * quantity);
+    }, 0);
+  };
+
+  const calculateServicesTotal = () => {
+    return services.reduce((total, projectService) => {
+      const price = parseFloat(projectService.service?.price || '0');
+      const quantity = projectService.quantity || 0;
+      return total + (price * quantity);
+    }, 0);
+  };
+
+  const calculateSalesTotal = () => {
+    return calculateProductsTotal() + calculateServicesTotal();
+  };
+
+  // Розрахунок відсотка виконання
+  const calculateCompletionPercentage = () => {
+    const salesTotal = calculateSalesTotal();
+    const forecastAmount = parseFloat(project.forecast_amount?.toString() || '0');
+    
+    if (forecastAmount === 0) return 0;
+    return Math.round((salesTotal / forecastAmount) * 100);
   };
 
   return (
@@ -74,6 +149,71 @@ export default function ProjectInfoPanel({ project, onEdit }: ProjectInfoPanelPr
           <p className="text-lg font-medium text-green-600">
             {formatCurrency(project.forecast_amount)}
           </p>
+        </div>
+
+        <Separator />
+
+        {/* Продажі та виконання */}
+        <div>
+          <h4 className="font-semibold mb-3 flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4" />
+            Продажі
+          </h4>
+          
+          {loadingProducts ? (
+            <div className="text-sm text-muted-foreground">Завантаження...</div>
+          ) : (
+            <div className="space-y-3">
+              {/* Сума продажів */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm text-muted-foreground">Сума продажів:</span>
+                </div>
+                <p className="text-lg font-medium text-blue-600">
+                  {formatCurrency(calculateSalesTotal())}
+                </p>
+              </div>
+
+              {/* Відсоток виконання */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-muted-foreground">Виконання:</span>
+                  <Badge 
+                    variant={calculateCompletionPercentage() >= 100 ? "default" : calculateCompletionPercentage() >= 70 ? "secondary" : "outline"}
+                    className="text-xs"
+                  >
+                    {calculateCompletionPercentage()}%
+                  </Badge>
+                </div>
+                
+                {/* Прогрес бар */}
+                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      calculateCompletionPercentage() >= 100 
+                        ? 'bg-green-500' 
+                        : calculateCompletionPercentage() >= 70 
+                        ? 'bg-blue-500' 
+                        : 'bg-yellow-500'
+                    }`}
+                    style={{ width: `${Math.min(calculateCompletionPercentage(), 100)}%` }}
+                  ></div>
+                </div>
+                
+                {/* Детальна інформація */}
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div className="flex justify-between">
+                    <span>Товари:</span>
+                    <span>{formatCurrency(calculateProductsTotal())}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Послуги:</span>
+                    <span>{formatCurrency(calculateServicesTotal())}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <Separator />

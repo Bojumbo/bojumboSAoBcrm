@@ -220,13 +220,49 @@ export class ProjectService {
     }
   }
 
+  static async updateProduct(project_product_id: number, data: { quantity: number }) {
+    try {
+      const updated = await prisma.projectProduct.update({
+        where: { project_product_id },
+        data: { quantity: data.quantity },
+        include: { product: { include: { unit: true } } }
+      });
+      return { ...updated, quantity: Number((updated as any).quantity ?? data.quantity) } as any;
+    } catch {
+      return null;
+    }
+  }
+
   static async addService(project_id: number, data: { service_id: number; quantity?: number }) {
-    const raw = Number(data.quantity);
-    const units = Math.max(1, Math.round((isNaN(raw) ? 1 : raw) * 10)); // store as tenths
-    await prisma.projectService.deleteMany({ where: { project_id, service_id: data.service_id } });
-    await prisma.projectService.createMany({ data: Array.from({ length: units }).map(() => ({ project_id, service_id: data.service_id })) });
-    const svc = await prisma.service.findUnique({ where: { service_id: data.service_id } });
-    return { project_id, service_id: data.service_id, quantity: units / 10, service: svc } as any;
+    const quantity = data.quantity || 1;
+    
+    // Створюємо новий запис ProjectService
+    const projectService = await prisma.projectService.create({
+      data: {
+        project_id,
+        service_id: data.service_id
+      },
+      include: {
+        service: true
+      }
+    });
+    
+    // Оновлюємо quantity через raw SQL до регенерації типів
+    await prisma.$executeRaw`
+      UPDATE project_services 
+      SET quantity = ${quantity} 
+      WHERE project_service_id = ${projectService.project_service_id}
+    `;
+    
+    // Повертаємо оновлений запис
+    const updatedProjectService = await prisma.projectService.findUnique({
+      where: { project_service_id: projectService.project_service_id },
+      include: {
+        service: true
+      }
+    });
+    
+    return updatedProjectService;
   }
 
   static async removeService(project_service_id: number): Promise<boolean> {
@@ -235,6 +271,29 @@ export class ProjectService {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  static async updateService(project_service_id: number, data: { quantity: number }) {
+    try {
+      // Оновлюємо quantity через raw SQL
+      await prisma.$executeRaw`
+        UPDATE project_services 
+        SET quantity = ${data.quantity} 
+        WHERE project_service_id = ${project_service_id}
+      `;
+      
+      // Повертаємо оновлений запис
+      const updatedProjectService = await prisma.projectService.findUnique({
+        where: { project_service_id },
+        include: {
+          service: true
+        }
+      });
+      
+      return updatedProjectService;
+    } catch {
+      return null;
     }
   }
 
@@ -248,16 +307,29 @@ export class ProjectService {
   }
 
   static async getProducts(projectId: number) {
-    return await prisma.projectProduct.findMany({
-      where: { project_id: projectId },
-      include: {
-        product: {
-          include: {
-            unit: true
+    const [products, services] = await Promise.all([
+      prisma.projectProduct.findMany({
+        where: { project_id: projectId },
+        include: {
+          product: {
+            include: {
+              unit: true
+            }
           }
         }
-      }
-    });
+      }),
+      prisma.projectService.findMany({
+        where: { project_id: projectId },
+        include: {
+          service: true
+        }
+      })
+    ]);
+
+    return {
+      products,
+      services
+    };
   }
 
   static async addSecondaryManager(projectId: number, managerId: number): Promise<ProjectManager> {
