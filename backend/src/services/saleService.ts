@@ -33,7 +33,7 @@ const toSaleWithRelations = (
 };
 
 export class SaleService {
-  static async getAll(userRole: string, userId: number): Promise<SaleWithRelations[]> {
+  static async getAll(userRole: string, userId: number, projectId?: number): Promise<SaleWithRelations[]> {
     let whereClause: any = {};
 
     if (userRole !== 'admin') {
@@ -45,6 +45,11 @@ export class SaleService {
       } else {
         whereClause.responsible_manager_id = userId;
       }
+    }
+
+    // Додаємо фільтрацію за проектом, якщо надано projectId
+    if (projectId) {
+      whereClause.project_id = projectId;
     }
 
     const sales = await prisma.sale.findMany({

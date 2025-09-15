@@ -12,7 +12,10 @@ export class SaleController {
         });
       }
 
-      const sales = await SaleService.getAll(req.user.role, req.user.manager_id);
+      // Отримуємо project_id з query параметрів для фільтрації
+      const projectId = req.query.project_id ? parseInt(req.query.project_id as string) : undefined;
+
+      const sales = await SaleService.getAll(req.user.role, req.user.manager_id, projectId);
 
       res.json({
         success: true,

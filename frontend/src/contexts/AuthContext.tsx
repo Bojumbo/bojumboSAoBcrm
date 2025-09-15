@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AuthUser } from '@/types/auth';
 import { authAPI } from '@/lib/api';
+import { removeAuthToken } from '@/lib/auth';
 
 interface AuthContextType {
   user: AuthUser | null;

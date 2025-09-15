@@ -7,6 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Plus, TrendingUp, Search, Calendar, DollarSign, User, Building } from 'lucide-react';
 import { Sale } from '@/types/projects';
+import { UpdateSaleData } from '@/services/salesService';
+import { salesService } from '@/services/salesService';
+import SaleDetails from './SaleDetails';
+import EditSaleForm from './EditSaleForm';
 
 interface ProjectSalesProps {
   projectId: number;
@@ -16,6 +20,9 @@ export default function ProjectSales({ projectId }: ProjectSalesProps) {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   useEffect(() => {
     fetchSales();
@@ -24,15 +31,7 @@ export default function ProjectSales({ projectId }: ProjectSalesProps) {
   const fetchSales = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/sales?project_id=${projectId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`/api/projects/${projectId}/sales`);
 
       if (response.ok) {
         const result = await response.json();
@@ -99,6 +98,32 @@ export default function ProjectSales({ projectId }: ProjectSalesProps) {
     // Для демонстрації повертаємо базову суму
     // В реальному проекті тут буде логіка розрахунку на основі товарів та послуг
     return Math.floor(Math.random() * 50000) + 10000; // Тимчасово для демонстрації
+  };
+
+  const handleViewSale = (sale: Sale) => {
+    setSelectedSale(sale);
+    setIsDetailsOpen(true);
+  };
+
+  const handleEditSale = (sale: Sale) => {
+    setSelectedSale(sale);
+    setIsEditOpen(true);
+  };
+
+  const handleSaleUpdated = () => {
+    fetchSales(); // Перезавантажуємо список продажів
+    setIsEditOpen(false);
+    setSelectedSale(null);
+  };
+
+  const handleUpdateSale = async (id: number, data: UpdateSaleData) => {
+    try {
+      await salesService.update(id, data);
+      handleSaleUpdated();
+    } catch (error) {
+      console.error('Error updating sale:', error);
+      throw error;
+    }
   };
 
   const filteredSales = Array.isArray(sales) ? sales.filter(sale =>
@@ -278,10 +303,18 @@ export default function ProjectSales({ projectId }: ProjectSalesProps) {
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4 border-t">
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleEditSale(sale)}
+                  >
                     Редагувати
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleViewSale(sale)}
+                  >
                     Переглянути
                   </Button>
                 </div>
@@ -290,6 +323,25 @@ export default function ProjectSales({ projectId }: ProjectSalesProps) {
           ))}
         </div>
       )}
+
+      {/* Діалог перегляду продажу */}
+      <SaleDetails
+        open={isDetailsOpen}
+        onOpenChange={setIsDetailsOpen}
+        sale={selectedSale}
+        onEdit={() => {
+          setIsDetailsOpen(false);
+          setIsEditOpen(true);
+        }}
+      />
+
+      {/* Діалог редагування продажу */}
+      <EditSaleForm
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        sale={selectedSale}
+        onSubmit={handleUpdateSale}
+      />
     </div>
   );
 }

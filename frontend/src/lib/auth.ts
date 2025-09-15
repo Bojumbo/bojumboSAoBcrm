@@ -2,7 +2,7 @@
 
 export const setAuthToken = (token: string) => {
   // Зберігаємо токен в localStorage
-  localStorage.setItem('authToken', token);
+  localStorage.setItem('auth_token', token);
   
   // Зберігаємо токен в cookies для middleware
   const expires = new Date();
@@ -12,7 +12,7 @@ export const setAuthToken = (token: string) => {
 
 export const getAuthToken = (): string | null => {
   // Спочатку шукаємо в localStorage
-  let token = localStorage.getItem('authToken');
+  let token = localStorage.getItem('auth_token');
   
   if (!token && typeof document !== 'undefined') {
     // Якщо в localStorage немає, шукаємо в cookies
@@ -21,7 +21,7 @@ export const getAuthToken = (): string | null => {
     if (authCookie) {
       token = authCookie.split('=')[1];
       // Синхронізуємо з localStorage
-      localStorage.setItem('authToken', token);
+      localStorage.setItem('auth_token', token);
     }
   }
   
@@ -30,7 +30,7 @@ export const getAuthToken = (): string | null => {
 
 export const removeAuthToken = () => {
   // Видаляємо з localStorage
-  localStorage.removeItem('authToken');
+  localStorage.removeItem('auth_token');
   
   // Видаляємо з cookies
   if (typeof document !== 'undefined') {

@@ -21,6 +21,8 @@ async function main() {
     prisma.sale.deleteMany(),
     prisma.project.deleteMany(),
     prisma.projectManager.deleteMany(),
+    prisma.subProjectFunnelStage.deleteMany(),
+    prisma.subProjectFunnel.deleteMany(),
     prisma.funnelStage.deleteMany(),
     prisma.funnel.deleteMany(),
     prisma.productStock.deleteMany(),
@@ -352,6 +354,49 @@ async function main() {
   ]);
 
   console.log('📋 Created subprojects');
+
+  // Create subproject funnels
+  const subProjectFunnels = await Promise.all([
+    prisma.subProjectFunnel.create({ data: { name: 'Розробка ПЗ' } }),
+    prisma.subProjectFunnel.create({ data: { name: 'Дизайн' } }),
+    prisma.subProjectFunnel.create({ data: { name: 'Маркетинг' } }),
+  ]);
+
+  console.log('🔄 Created subproject funnels');
+
+  // Create subproject funnel stages
+  const subProjectFunnelStages = await Promise.all([
+    // Stages for SubProject Funnel 1 (Розробка ПЗ)
+    prisma.subProjectFunnelStage.create({ data: { name: 'Планування', sub_project_funnel_id: subProjectFunnels[0].sub_project_funnel_id, order: 1 } }),
+    prisma.subProjectFunnelStage.create({ data: { name: 'Розробка', sub_project_funnel_id: subProjectFunnels[0].sub_project_funnel_id, order: 2 } }),
+    prisma.subProjectFunnelStage.create({ data: { name: 'Тестування', sub_project_funnel_id: subProjectFunnels[0].sub_project_funnel_id, order: 3 } }),
+    prisma.subProjectFunnelStage.create({ data: { name: 'Завершено', sub_project_funnel_id: subProjectFunnels[0].sub_project_funnel_id, order: 4 } }),
+    
+    // Stages for SubProject Funnel 2 (Дизайн)
+    prisma.subProjectFunnelStage.create({ data: { name: 'Концепція', sub_project_funnel_id: subProjectFunnels[1].sub_project_funnel_id, order: 1 } }),
+    prisma.subProjectFunnelStage.create({ data: { name: 'Макетування', sub_project_funnel_id: subProjectFunnels[1].sub_project_funnel_id, order: 2 } }),
+    prisma.subProjectFunnelStage.create({ data: { name: 'Верстка', sub_project_funnel_id: subProjectFunnels[1].sub_project_funnel_id, order: 3 } }),
+    prisma.subProjectFunnelStage.create({ data: { name: 'Готово', sub_project_funnel_id: subProjectFunnels[1].sub_project_funnel_id, order: 4 } }),
+    
+    // Stages for SubProject Funnel 3 (Маркетинг)
+    prisma.subProjectFunnelStage.create({ data: { name: 'Аналіз', sub_project_funnel_id: subProjectFunnels[2].sub_project_funnel_id, order: 1 } }),
+    prisma.subProjectFunnelStage.create({ data: { name: 'Стратегія', sub_project_funnel_id: subProjectFunnels[2].sub_project_funnel_id, order: 2 } }),
+    prisma.subProjectFunnelStage.create({ data: { name: 'Реалізація', sub_project_funnel_id: subProjectFunnels[2].sub_project_funnel_id, order: 3 } }),
+    prisma.subProjectFunnelStage.create({ data: { name: 'Результат', sub_project_funnel_id: subProjectFunnels[2].sub_project_funnel_id, order: 4 } }),
+  ]);
+
+  console.log('📊 Created subproject funnel stages');
+
+  // Update subprojects with funnel information
+  await prisma.subProject.update({
+    where: { subproject_id: subprojects[0].subproject_id },
+    data: {
+      sub_project_funnel_id: subProjectFunnels[1].sub_project_funnel_id, // Дизайн
+      sub_project_funnel_stage_id: subProjectFunnelStages[5].sub_project_funnel_stage_id, // Макетування
+    }
+  });
+
+  console.log('🔗 Updated subprojects with funnel information');
 
   // Create tasks
   const tasks = await Promise.all([
