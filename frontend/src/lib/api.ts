@@ -268,9 +268,12 @@ export interface SubProjectFunnelsResponse {
 }
 
 export const subprojectsAPI = {
-  getAll: async (): Promise<SubProjectsResponse> => {
+  getAll: async (projectId?: number): Promise<SubProjectsResponse> => {
     try {
-      const response = await api.get('/subprojects');
+      const url = projectId 
+        ? `/subprojects?project_id=${projectId}`
+        : '/subprojects';
+      const response = await api.get(url);
       return response.data;
     } catch (error: any) {
       return {
@@ -288,6 +291,18 @@ export const subprojectsAPI = {
       return {
         success: false,
         error: error.response?.data?.error || 'Помилка завантаження підпроекту',
+      };
+    }
+  },
+
+  update: async (id: number, subprojectData: Partial<SubProject>): Promise<SubProjectResponse> => {
+    try {
+      const response = await api.put(`/subprojects/${id}`, subprojectData);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка оновлення підпроекту',
       };
     }
   },

@@ -74,6 +74,8 @@ export interface SubProject {
   sub_project_funnel_stage_id?: number;
   created_at: string;
   updated_at: string;
+  funnel?: SubProjectFunnel;
+  funnel_stage?: SubProjectFunnelStage;
 }
 
 export interface Task {

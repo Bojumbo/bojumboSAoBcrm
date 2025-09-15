@@ -69,13 +69,19 @@ const toSubProject = (subProject: Prisma.SubProjectGetPayload<{}>): SubProject =
 
 
 export class SubProjectService {
-  static async getAll(userRole: string, userId: number): Promise<SubProjectWithRelations[]> {
+  static async getAll(userRole: string, userId: number, projectId?: number): Promise<SubProjectWithRelations[]> {
     let whereClause: any = {};
+
+    // Додаємо фільтр по проекту, якщо передано projectId
+    if (projectId) {
+      whereClause.project_id = projectId;
+    }
 
     if (userRole !== 'admin') {
       if (userRole === 'head') {
         const subordinateIds = await AuthService.getSubordinateIds(userId);
         whereClause.project = {
+          ...whereClause.project,
           OR: [
             { main_responsible_manager_id: { in: [userId, ...subordinateIds] } },
             {
@@ -89,6 +95,7 @@ export class SubProjectService {
         };
       } else {
         whereClause.project = {
+          ...whereClause.project,
           OR: [
             { main_responsible_manager_id: userId },
             {
@@ -112,6 +119,14 @@ export class SubProjectService {
             counterparty: true
           }
         },
+        funnel: {
+          include: {
+            stages: {
+              orderBy: { order: 'asc' }
+            }
+          }
+        },
+        funnel_stage: true,
         tasks: { include: { responsible_manager: true, creator_manager: true } },
         comments: { include: { manager: true }, orderBy: { created_at: 'asc' } },
         products: { include: { product: { include: { unit: true } } } },
@@ -173,6 +188,14 @@ export class SubProjectService {
             counterparty: true
           }
         },
+        funnel: {
+          include: {
+            stages: {
+              orderBy: { order: 'asc' }
+            }
+          }
+        },
+        funnel_stage: true,
         tasks: { include: { responsible_manager: true, creator_manager: true } },
         comments: { include: { manager: true }, orderBy: { created_at: 'asc' } },
         products: { include: { product: { include: { unit: true } } } },

@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, FileText, Calendar, DollarSign, User, Building } from 'lucide-react';
+import { Plus, FileText, Calendar, DollarSign, User, Building, Eye, Edit } from 'lucide-react';
 import { SubProject } from '@/types/projects';
+import { subprojectsAPI } from '@/lib/api';
 
 interface ProjectSubprojectsProps {
   projectId: number;
@@ -14,6 +16,7 @@ interface ProjectSubprojectsProps {
 export default function ProjectSubprojects({ projectId }: ProjectSubprojectsProps) {
   const [subprojects, setSubprojects] = useState<SubProject[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     fetchSubprojects();
@@ -22,32 +25,12 @@ export default function ProjectSubprojects({ projectId }: ProjectSubprojectsProp
   const fetchSubprojects = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/subprojects?project_id=${projectId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Subprojects API response:', result);
-        
-        // Перевіряємо формат відповіді
-        let data;
-        if (result.success && result.data) {
-          data = result.data;
-        } else {
-          data = result;
-        }
-        
-        // Перевіряємо чи data є масивом
-        setSubprojects(Array.isArray(data) ? data : []);
+      const response = await subprojectsAPI.getAll(projectId);
+      
+      if (response.success && response.data) {
+        setSubprojects(response.data);
       } else {
-        console.error('Failed to fetch subprojects:', response.status);
+        console.error('Failed to fetch subprojects:', response.error);
         setSubprojects([]);
       }
     } catch (error) {
@@ -76,23 +59,8 @@ export default function ProjectSubprojects({ projectId }: ProjectSubprojectsProp
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'новий':
-      case 'new':
-        return 'bg-blue-100 text-blue-800';
-      case 'в роботі':
-      case 'in_progress':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'завершено':
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'призупинено':
-      case 'suspended':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  const handleViewSubproject = (subprojectId: number) => {
+    router.push(`/subprojects/${subprojectId}`);
   };
 
   if (loading) {
@@ -151,14 +119,23 @@ export default function ProjectSubprojects({ projectId }: ProjectSubprojectsProp
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    {subproject.status && (
-                      <Badge 
-                        variant="secondary"
-                        className={getStatusColor(subproject.status)}
-                      >
-                        {subproject.status}
-                      </Badge>
-                    )}
+                    <div className="text-right">
+                      {subproject.funnel && (
+                        <div className="text-sm text-muted-foreground">
+                          Воронка: <span className="font-medium">{subproject.funnel.name}</span>
+                        </div>
+                      )}
+                      {subproject.funnel_stage && (
+                        <div className="text-sm text-muted-foreground">
+                          Етап: <span className="font-medium">{subproject.funnel_stage.name}</span>
+                        </div>
+                      )}
+                      {!subproject.funnel && !subproject.funnel_stage && (
+                        <div className="text-sm text-muted-foreground">
+                          Воронка не встановлена
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -197,10 +174,12 @@ export default function ProjectSubprojects({ projectId }: ProjectSubprojectsProp
                     ID: {subproject.subproject_id}
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      Редагувати
-                    </Button>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleViewSubproject(subproject.subproject_id)}
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
                       Переглянути
                     </Button>
                   </div>

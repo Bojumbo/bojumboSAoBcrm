@@ -11,7 +11,9 @@ export class SubProjectController {
         });
       }
 
-      const subprojects = await SubProjectService.getAll(req.user.role, req.user.manager_id);
+      const projectId = req.query.project_id ? parseInt(req.query.project_id as string) : undefined;
+      
+      const subprojects = await SubProjectService.getAll(req.user.role, req.user.manager_id, projectId);
 
       res.json({
         success: true,
