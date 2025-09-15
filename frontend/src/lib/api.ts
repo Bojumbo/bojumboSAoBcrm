@@ -7,7 +7,9 @@ import {
   FunnelsResponse, 
   ProjectResponse,
   CreateProjectRequest,
-  UpdateProjectRequest
+  UpdateProjectRequest,
+  SubProject,
+  SubProjectFunnel
 } from '@/types/projects';
 import { Counterparty, CounterpartyWithRelations } from '@/types/counterparties';
 
@@ -242,6 +244,79 @@ export const counterpartiesAPI = {
       return await response.json();
     } catch (error: any) {
       throw new Error(error.message || 'Помилка отримання контрагента');
+    }
+  },
+};
+
+// Типи для відповідей API підпроектів
+export interface SubProjectsResponse {
+  success: boolean;
+  data?: SubProject[];
+  error?: string;
+}
+
+export interface SubProjectResponse {
+  success: boolean;
+  data?: SubProject;
+  error?: string;
+}
+
+export interface SubProjectFunnelsResponse {
+  success: boolean;
+  data?: SubProjectFunnel[];
+  error?: string;
+}
+
+export const subprojectsAPI = {
+  getAll: async (): Promise<SubProjectsResponse> => {
+    try {
+      const response = await api.get('/subprojects');
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка завантаження підпроектів',
+      };
+    }
+  },
+
+  getById: async (id: number): Promise<SubProjectResponse> => {
+    try {
+      const response = await api.get(`/subprojects/${id}`);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка завантаження підпроекту',
+      };
+    }
+  },
+
+  updateStage: async (subprojectId: number, stageId: number): Promise<SubProjectResponse> => {
+    try {
+      const response = await api.put(`/subprojects/${subprojectId}`, {
+        sub_project_funnel_stage_id: stageId
+      });
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка оновлення етапу підпроекту',
+      };
+    }
+  },
+};
+
+export const subprojectFunnelsAPI = {
+  getAll: async (): Promise<SubProjectFunnelsResponse> => {
+    try {
+      const response = await api.get('/sub-project-funnels');
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка завантаження воронок підпроектів',
+      };
     }
   },
 };
