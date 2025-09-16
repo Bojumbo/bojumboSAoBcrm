@@ -19,17 +19,22 @@ class SettingsService {
   private async fetchWithAuth(url: string, options: RequestInit = {}) {
     const token = getAuthToken();
     
+    console.log('fetchWithAuth викликаний:', { url, hasToken: !!token });
+    
     if (!token) {
+      console.error('Токен аутентифікації відсутній');
       redirectToLogin();
       throw new Error('No authentication token found');
     }
     
     if (isTokenExpired(token)) {
+      console.error('Токен аутентифікації прострочений');
       redirectToLogin();
       throw new Error('Authentication token expired');
     }
     
     const fullUrl = `${API_BASE_URL}${url}`;
+    console.log('Виконання запиту:', fullUrl);
     
     const response = await fetch(fullUrl, {
       ...options,
@@ -40,18 +45,22 @@ class SettingsService {
       },
     });
 
+    console.log('Відповідь від сервера:', { status: response.status, ok: response.ok });
+
     if (response.status === 401 || response.status === 403) {
+      console.error('Помилка аутентифікації:', response.status);
       redirectToLogin();
       throw new Error('Authentication failed');
     }
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('API Error:', errorText);
-      throw new Error(`HTTP error! status: ${response.status}`);
+      console.error('API Error:', { status: response.status, errorText });
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
 
     const result = await response.json();
+    console.log('Результат від API:', result);
     
     if (result.success && result.data) {
       return result.data;
@@ -62,7 +71,15 @@ class SettingsService {
 
   // Отримати поточні дані профілю
   async getCurrentProfile(): Promise<Manager> {
-    return this.fetchWithAuth('/settings/profile');
+    console.log('Запит профілю користувача...');
+    try {
+      const result = await this.fetchWithAuth('/settings/profile');
+      console.log('Профіль отримано:', result);
+      return result;
+    } catch (error) {
+      console.error('Помилка при отриманні профілю:', error);
+      throw error;
+    }
   }
 
   // Оновити профіль користувача

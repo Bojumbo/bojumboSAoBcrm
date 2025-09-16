@@ -6,12 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { User, Lock, Mail, Phone } from 'lucide-react';
+import { User, Lock, Mail, Phone, AlertCircle } from 'lucide-react';
 import { settingsService } from '@/services/settingsService';
 
 export default function AccountSettings() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -29,8 +30,12 @@ export default function AccountSettings() {
 
   const loadProfile = async () => {
     setIsLoadingProfile(true);
+    setError(null);
     try {
+      console.log('Завантаження профілю...');
       const profile = await settingsService.getCurrentProfile();
+      console.log('Отримані дані профілю:', profile);
+      
       setFormData(prev => ({
         ...prev,
         firstName: profile.first_name || '',
@@ -40,7 +45,7 @@ export default function AccountSettings() {
       }));
     } catch (error) {
       console.error('Помилка завантаження профілю:', error);
-      // Показати повідомлення про помилку
+      setError(`Помилка завантаження профілю: ${error instanceof Error ? error.message : 'Невідома помилка'}`);
     } finally {
       setIsLoadingProfile(false);
     }
@@ -125,6 +130,24 @@ export default function AccountSettings() {
 
   return (
     <div className="space-y-6">
+      {/* Показ помилки */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="flex items-center gap-2 p-4">
+            <AlertCircle className="h-5 w-5 text-red-500" />
+            <p className="text-red-700">{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={loadProfile}
+              className="ml-auto"
+            >
+              Спробувати знову
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Основна інформація профілю */}
       <Card>
         <CardHeader>
