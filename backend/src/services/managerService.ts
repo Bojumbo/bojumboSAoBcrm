@@ -38,6 +38,24 @@ export class ManagerService {
     return managers as unknown as ManagerWithRelations[];
   }
 
+  static async getAllForAssignment(): Promise<Manager[]> {
+    // Повертаємо всіх менеджерів для можливості призначення завдань
+    const managers = await prisma.manager.findMany({
+      select: {
+        manager_id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        role: true
+      },
+      orderBy: [
+        { first_name: 'asc' },
+        { last_name: 'asc' }
+      ]
+    });
+    return managers as unknown as Manager[];
+  }
+
   static async getById(id: number, userRole: string, userId: number): Promise<ManagerWithRelations | null> {
     if (userRole !== 'admin' && userId !== id) {
       if (userRole === 'head') {

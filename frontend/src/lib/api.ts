@@ -9,7 +9,9 @@ import {
   CreateProjectRequest,
   UpdateProjectRequest,
   SubProject,
-  SubProjectFunnel
+  SubProjectFunnel,
+  Task,
+  Manager
 } from '@/types/projects';
 import { Counterparty, CounterpartyWithRelations } from '@/types/counterparties';
 
@@ -331,6 +333,120 @@ export const subprojectFunnelsAPI = {
       return {
         success: false,
         error: error.response?.data?.error || 'Помилка завантаження воронок підпроектів',
+      };
+    }
+  },
+};
+
+// API для менеджерів
+export const managersAPI = {
+  getAll: async (): Promise<{ success: boolean; data?: Manager[]; error?: string }> => {
+    try {
+      const response = await api.get('/managers');
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка завантаження менеджерів',
+      };
+    }
+  },
+
+  getAllForAssignment: async (): Promise<{ success: boolean; data?: Manager[]; error?: string }> => {
+    try {
+      const response = await api.get('/managers/assignment');
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка завантаження менеджерів для призначення',
+      };
+    }
+  },
+};
+
+// API для завдань
+export const tasksAPI = {
+  getAll: async (): Promise<{ success: boolean; data?: Task[]; error?: string }> => {
+    try {
+      const response = await api.get('/tasks');
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка завантаження завдань',
+      };
+    }
+  },
+
+  getById: async (id: number): Promise<{ success: boolean; data?: Task; error?: string }> => {
+    try {
+      const response = await api.get(`/tasks/${id}`);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка завантаження завдання',
+      };
+    }
+  },
+
+  create: async (taskData: Partial<Task>): Promise<{ success: boolean; data?: Task; error?: string }> => {
+    try {
+      const response = await api.post('/tasks', taskData);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка створення завдання',
+      };
+    }
+  },
+
+  update: async (id: number, taskData: Partial<Task>): Promise<{ success: boolean; data?: Task; error?: string }> => {
+    try {
+      const response = await api.put(`/tasks/${id}`, taskData);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка оновлення завдання',
+      };
+    }
+  },
+
+  partialUpdate: async (id: number, taskData: Partial<Task>): Promise<{ success: boolean; data?: Task; error?: string }> => {
+    try {
+      const response = await api.patch(`/tasks/${id}`, taskData);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка оновлення завдання',
+      };
+    }
+  },
+
+  updateStatus: async (id: number, status: string): Promise<{ success: boolean; data?: Task; error?: string }> => {
+    try {
+      const response = await api.patch(`/tasks/${id}/status`, { status });
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка оновлення статусу завдання',
+      };
+    }
+  },
+
+  delete: async (id: number): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await api.delete(`/tasks/${id}`);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка видалення завдання',
       };
     }
   },

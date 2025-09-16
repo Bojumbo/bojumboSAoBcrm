@@ -26,6 +26,30 @@ export class ManagerController {
     }
   }
 
+  static async getAllForAssignment(req: Request, res: Response) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Not authenticated'
+        });
+      }
+
+      const managers = await ManagerService.getAllForAssignment();
+
+      res.json({
+        success: true,
+        data: managers
+      });
+    } catch (error) {
+      console.error('Get managers for assignment error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      });
+    }
+  }
+
   static async getById(req: Request, res: Response) {
     try {
       if (!req.user) {

@@ -9,6 +9,7 @@ router.use(authenticateToken);
 
 // CRUD operations
 router.get('/', ManagerController.getAll);
+router.get('/assignment', ManagerController.getAllForAssignment);
 router.get('/:id', ManagerController.getById);
 
 // Admin only operations

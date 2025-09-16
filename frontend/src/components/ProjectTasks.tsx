@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Plus, CheckSquare, Search, Calendar, User, Clock, AlertCircle } from 'lucide-react';
 import { Task } from '@/types/projects';
+import TaskDetailsDialog from './TaskDetailsDialog';
 
 interface ProjectTasksProps {
   projectId: number;
@@ -16,6 +17,8 @@ export default function ProjectTasks({ projectId }: ProjectTasksProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   useEffect(() => {
     fetchTasks();
@@ -33,19 +36,14 @@ export default function ProjectTasks({ projectId }: ProjectTasksProps) {
           },
         }
       );
-
       if (response.ok) {
         const result = await response.json();
-        console.log('Tasks API response:', result);
-        
-        // Перевіряємо формат відповіді
         let data;
         if (result.success && result.data) {
           data = result.data;
         } else {
           data = result;
         }
-        
         setTasks(Array.isArray(data) ? data : []);
       } else {
         console.error('Failed to fetch tasks:', response.status);
@@ -113,10 +111,13 @@ export default function ProjectTasks({ projectId }: ProjectTasksProps) {
   };
 
   const filteredTasks = Array.isArray(tasks) ? tasks.filter(task =>
-    task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    task.responsible_manager?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    task.responsible_manager?.last_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    // Фільтруємо спочатку по projectId, потім по пошуку
+    task.project_id === projectId && (
+      task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.responsible_manager?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.responsible_manager?.last_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   ) : [];
 
   const taskStats = {
@@ -140,7 +141,8 @@ export default function ProjectTasks({ projectId }: ProjectTasksProps) {
   }
 
   return (
-    <div className="space-y-6 min-h-[600px]">
+  <>
+  <div className="space-y-6 min-h-[600px]">
       <div className="flex justify-between items-center gap-4">
         <div>
           <h3 className="text-lg font-semibold">Завдання проекту</h3>
@@ -304,10 +306,7 @@ export default function ProjectTasks({ projectId }: ProjectTasksProps) {
                     ID: {task.task_id}
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      Редагувати
-                    </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => { setSelectedTask(task); setDialogOpen(true); }}>
                       Переглянути
                     </Button>
                     {task.status !== 'done' && (
@@ -323,5 +322,19 @@ export default function ProjectTasks({ projectId }: ProjectTasksProps) {
         </div>
       )}
     </div>
+    <TaskDetailsDialog
+      open={dialogOpen}
+      onOpenChange={setDialogOpen}
+      task={selectedTask}
+      onTaskUpdated={(updated: Task) => {
+        setTasks(prev => prev.map(t => t.task_id === updated.task_id ? updated : t));
+        setDialogOpen(false);
+      }}
+      onTaskDeleted={(deletedId: number) => {
+        setTasks(prev => prev.filter(t => t.task_id !== deletedId));
+        setDialogOpen(false);
+      }}
+    />
+    </>
   );
 }
