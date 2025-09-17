@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { getAuthToken } from '@/lib/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ export default function ProjectInfoPanel({ project, onEdit }: ProjectInfoPanelPr
     const fetchProductsAndServices = async () => {
       try {
         setLoadingProducts(true);
-        const token = localStorage.getItem('authToken');
+  const token = getAuthToken();
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/projects/${project.project_id}/products`,
           {

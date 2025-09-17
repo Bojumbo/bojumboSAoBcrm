@@ -77,6 +77,19 @@ export class SubProjectController {
       }
 
       const subprojectData = req.body;
+      // Валідація: має бути або project_id, або parent_subproject_id
+      if (!subprojectData.project_id && !subprojectData.parent_subproject_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Subproject must be attached to either project or another subproject'
+        });
+      }
+      if (subprojectData.project_id && subprojectData.parent_subproject_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Subproject cannot be attached to both project and subproject'
+        });
+      }
       const subproject = await SubProjectService.create(subprojectData);
 
       res.status(201).json({
@@ -110,6 +123,19 @@ export class SubProjectController {
       }
 
       const subprojectData = req.body;
+      // Валідація: має бути або project_id, або parent_subproject_id
+      if (!subprojectData.project_id && !subprojectData.parent_subproject_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Subproject must be attached to either project or another subproject'
+        });
+      }
+      if (subprojectData.project_id && subprojectData.parent_subproject_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Subproject cannot be attached to both project and subproject'
+        });
+      }
       const subproject = await SubProjectService.update(id, subprojectData);
 
       if (!subproject) {

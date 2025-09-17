@@ -268,7 +268,8 @@ model SubProject {
   subproject_id               Int                    @id @default(autoincrement())
   name                        String
   description                 String?
-  project_id                  Int
+  project_id                  Int?
+  parent_subproject_id        Int?
   status                      String?
   cost                        Decimal                @db.Decimal(10, 2)
   created_at                  DateTime               @default(now())
@@ -279,12 +280,17 @@ model SubProject {
   comments                    SubProjectComment[]
   products                    SubProjectProduct[]
   services                    SubProjectService[]
-  project                     Project                @relation(fields: [project_id], references: [project_id], onDelete: Cascade)
+  project                     Project?               @relation(fields: [project_id], references: [project_id], onDelete: Cascade)
+  parent                      SubProject?            @relation("SubProjectParent", fields: [parent_subproject_id], references: [subproject_id])
+  children                    SubProject[]           @relation("SubProjectParent")
   funnel                      SubProjectFunnel?      @relation(fields: [sub_project_funnel_id], references: [sub_project_funnel_id])
   funnel_stage                SubProjectFunnelStage? @relation(fields: [sub_project_funnel_stage_id], references: [sub_project_funnel_stage_id])
   tasks                       Task[]
 
   @@map("subprojects")
+  @@index([parent_subproject_id])
+  @@index([project_id])
+  // Валідація: або project_id, або parent_subproject_id має бути заповнено, але не обидва одночасно
 }
 
 model Task {

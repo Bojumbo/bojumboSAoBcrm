@@ -16,17 +16,13 @@ export default function SubprojectsPage() {
     router.push(`/subprojects/${subproject.subproject_id}`);
   };
 
-  const handleCreateSubproject = () => {
-    // Тут можна відкрити форму створення нового підпроекту
-    console.log('Створити новий підпроект');
-  };
+
 
   return (
     <DashboardLayout>
       <div className="h-full overflow-hidden">
         <SubprojectsKanban 
           onSubprojectClick={handleSubprojectClick}
-          onCreateSubproject={handleCreateSubproject}
         />
       </div>
     </DashboardLayout>

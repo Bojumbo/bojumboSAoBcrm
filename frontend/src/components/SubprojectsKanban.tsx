@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import SubProjectEditDialog from './SubProjectEditDialog';
+import { projectsAPI } from '@/lib/api';
 import { SubProjectFunnel, SubProjectFunnelStage, SubProject } from '@/types/projects';
 import { subprojectsAPI, subprojectFunnelsAPI } from '@/lib/api';
 import SubprojectKanbanColumn from './SubprojectKanbanColumn';
@@ -28,6 +30,8 @@ export default function SubprojectsKanban({
   const [subprojects, setSubprojects] = useState<SubProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [availableProjects, setAvailableProjects] = useState<Array<{ project_id: number; name: string }>>([]);
 
   const loadFunnels = async () => {
     try {
@@ -81,6 +85,12 @@ export default function SubprojectsKanban({
 
   useEffect(() => {
     loadFunnels();
+    // Завантажити всі проекти для вибору
+    projectsAPI.getAll().then(res => {
+      if (res.success && res.data) {
+        setAvailableProjects(res.data.map((p: any) => ({ project_id: p.project_id, name: p.name })));
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -159,12 +169,10 @@ export default function SubprojectsKanban({
             <RefreshCw className="w-4 h-4 mr-2" />
             Оновити
           </Button>
-          {onCreateSubproject && (
-            <Button onClick={onCreateSubproject} size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Новий підпроект
-            </Button>
-          )}
+          <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
+            <Plus className="w-4 h-4 mr-2" />
+            Новий підпроект
+          </Button>
         </div>
       </div>
 
@@ -181,6 +189,8 @@ export default function SubprojectsKanban({
                   subprojects={subprojectsByStage[stage.sub_project_funnel_stage_id] || []}
                   onSubprojectClick={onSubprojectClick}
                   onSubprojectDrop={handleSubprojectDrop}
+                  allProjects={availableProjects}
+                  allSubprojects={subprojects}
                 />
               ))}
           </div>
@@ -197,6 +207,15 @@ export default function SubprojectsKanban({
           </Card>
         )}
       </div>
+      {/* Діалог створення підпроекту */}
+      <SubProjectEditDialog
+        isOpen={isCreateDialogOpen}
+        onClose={() => setIsCreateDialogOpen(false)}
+        onSave={() => { setIsCreateDialogOpen(false); loadSubprojects(); }}
+        mode="create"
+        availableProjects={availableProjects}
+  availableSubprojects={subprojects.map(sp => ({ subproject_id: sp.subproject_id, name: sp.name, project_id: sp.project_id, parent_subproject_id: sp.parent_subproject_id }))}
+      />
     </div>
   );
 }

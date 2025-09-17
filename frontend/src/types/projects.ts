@@ -67,7 +67,8 @@ export interface SubProject {
   subproject_id: number;
   name: string;
   description?: string;
-  project_id: number;
+  project_id: number | null;
+  parent_subproject_id?: number | null;
   status?: string;
   cost: string;
   sub_project_funnel_id?: number;

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import SubProjectEditDialog from './SubProjectEditDialog';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ interface ProjectSubprojectsProps {
 export default function ProjectSubprojects({ projectId }: ProjectSubprojectsProps) {
   const [subprojects, setSubprojects] = useState<SubProject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -84,7 +86,7 @@ export default function ProjectSubprojects({ projectId }: ProjectSubprojectsProp
             Управління підпроектами та їх статусами
           </p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button className="flex items-center gap-2" onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           Додати підпроект
         </Button>
@@ -98,7 +100,7 @@ export default function ProjectSubprojects({ projectId }: ProjectSubprojectsProp
             <p className="text-muted-foreground mb-4">
               Створіть перший підпроект для цього проекту
             </p>
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button variant="outline" className="flex items-center gap-2" onClick={() => setIsCreateDialogOpen(true)}>
               <Plus className="h-4 w-4" />
               Створити підпроект
             </Button>
@@ -139,7 +141,6 @@ export default function ProjectSubprojects({ projectId }: ProjectSubprojectsProp
                   </div>
                 </div>
               </CardHeader>
-              
               <CardContent className="pt-0">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                   <div className="flex items-center gap-2 text-sm">
@@ -149,26 +150,22 @@ export default function ProjectSubprojects({ projectId }: ProjectSubprojectsProp
                       {formatCurrency(subproject.cost)}
                     </span>
                   </div>
-                  
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Створено:</span>
                     <span>{formatDate(subproject.created_at)}</span>
                   </div>
-                  
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Оновлено:</span>
                     <span>{formatDate(subproject.updated_at)}</span>
                   </div>
-                  
                   <div className="flex items-center gap-2 text-sm">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">ID:</span>
                     <span>{subproject.subproject_id}</span>
                   </div>
                 </div>
-
                 <div className="flex justify-between items-center mt-4 pt-4 border-t">
                   <div className="text-xs text-muted-foreground">
                     ID: {subproject.subproject_id}
@@ -189,6 +186,14 @@ export default function ProjectSubprojects({ projectId }: ProjectSubprojectsProp
           ))}
         </div>
       )}
+      {/* Діалог створення підпроекту */}
+      <SubProjectEditDialog
+        isOpen={isCreateDialogOpen}
+        onClose={() => setIsCreateDialogOpen(false)}
+        onSave={() => { setIsCreateDialogOpen(false); fetchSubprojects(); }}
+        mode="create"
+        projectId={projectId}
+      />
     </div>
   );
 }

@@ -247,12 +247,19 @@ export class SubProjectService {
   }
 
   static async create(data: any): Promise<SubProject> {
+    // Валідація: має бути або project_id, або parent_subproject_id
+    if (!data.project_id && !data.parent_subproject_id) {
+      throw new Error('Subproject must be attached to either project or another subproject');
+    }
+    if (data.project_id && data.parent_subproject_id) {
+      throw new Error('Subproject cannot be attached to both project and subproject');
+    }
     const createData: any = {
       name: data.name,
-      project_id: data.project_id,
-      cost: data.cost
+      cost: data.cost,
+      project_id: data.project_id ?? null,
+      parent_subproject_id: data.parent_subproject_id ?? null
     };
-    
     if (data.description !== undefined) createData.description = data.description;
     if (data.status !== undefined) createData.status = data.status;
     if (data.sub_project_funnel_id !== undefined) createData.sub_project_funnel_id = data.sub_project_funnel_id;
@@ -265,17 +272,23 @@ export class SubProjectService {
   }
 
   static async update(id: number, data: any): Promise<SubProject | null> {
-    // Explicitly pick only the fields that are part of the SubProject model
+    // Валідація: має бути або project_id, або parent_subproject_id
+    if (!data.project_id && !data.parent_subproject_id) {
+      throw new Error('Subproject must be attached to either project or another subproject');
+    }
+    if (data.project_id && data.parent_subproject_id) {
+      throw new Error('Subproject cannot be attached to both project and subproject');
+    }
     const updateData: any = {};
-
     if (data.name !== undefined) updateData.name = data.name;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.cost !== undefined) updateData.cost = data.cost;
+    if (data.project_id !== undefined) updateData.project_id = data.project_id;
+    if (data.parent_subproject_id !== undefined) updateData.parent_subproject_id = data.parent_subproject_id;
     // Handle both old and new field names for backward compatibility
     if (data.sub_project_funnel_id !== undefined) updateData.sub_project_funnel_id = data.sub_project_funnel_id;
     else if (data.funnel_id !== undefined) updateData.sub_project_funnel_id = data.funnel_id;
-    
     if (data.sub_project_funnel_stage_id !== undefined) updateData.sub_project_funnel_stage_id = data.sub_project_funnel_stage_id;
     else if (data.funnel_stage_id !== undefined) updateData.sub_project_funnel_stage_id = data.funnel_stage_id;
 

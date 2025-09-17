@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { getAuthToken } from '@/lib/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +28,7 @@ export default function ProjectTasks({ projectId }: ProjectTasksProps) {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+  const token = getAuthToken();
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/tasks?project_id=${projectId}`,
         {

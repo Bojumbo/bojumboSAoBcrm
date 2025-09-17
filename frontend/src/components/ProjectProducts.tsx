@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { getAuthToken } from '@/lib/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -55,7 +56,14 @@ export default function ProjectProducts({ projectId }: ProjectProductsProps) {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+  const token = getAuthToken();
+      if (!token) {
+        alert('Ви не авторизовані. Будь ласка, увійдіть в систему.');
+        setLoading(false);
+        setProducts([]);
+        setServices([]);
+        return;
+      }
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/projects/${projectId}/products`,
         {
@@ -65,10 +73,17 @@ export default function ProjectProducts({ projectId }: ProjectProductsProps) {
         }
       );
 
+      if (response.status === 403) {
+        alert('Відмовлено у доступі. Перевірте права доступу або увійдіть знову.');
+        setProducts([]);
+        setServices([]);
+        setLoading(false);
+        return;
+      }
+
       if (response.ok) {
         const result = await response.json();
         console.log('Products API response:', result);
-        
         // Перевіряємо формат відповіді
         let data;
         if (result.success && result.data) {
@@ -76,7 +91,6 @@ export default function ProjectProducts({ projectId }: ProjectProductsProps) {
         } else {
           data = result;
         }
-        
         // Припускаємо, що API повертає як товари так і послуги
         setProducts(Array.isArray(data.products) ? data.products : Array.isArray(data) ? data : []);
         setServices(Array.isArray(data.services) ? data.services : []);
@@ -101,7 +115,7 @@ export default function ProjectProducts({ projectId }: ProjectProductsProps) {
 
     try {
       setDeletingProductId(projectProductId);
-      const token = localStorage.getItem('authToken');
+  const token = getAuthToken();
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/projects/${projectId}/products/${projectProductId}`,
         {
@@ -134,7 +148,7 @@ export default function ProjectProducts({ projectId }: ProjectProductsProps) {
 
     try {
       setDeletingServiceId(projectServiceId);
-      const token = localStorage.getItem('authToken');
+  const token = getAuthToken();
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/projects/${projectId}/services/${projectServiceId}`,
         {

@@ -1,20 +1,24 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SubProjectFunnelStage, SubProject } from '@/types/projects';
-import SubprojectCard from './SubprojectCard';
+import { SubprojectCard } from './SubprojectCard';
 
 interface SubprojectKanbanColumnProps {
   stage: SubProjectFunnelStage;
   subprojects: SubProject[];
   onSubprojectClick?: (subproject: SubProject) => void;
   onSubprojectDrop?: (subprojectId: number, stageId: number) => void;
+  allProjects: Array<{ project_id: number; name: string }>;
+  allSubprojects: SubProject[];
 }
 
 export default function SubprojectKanbanColumn({ 
   stage, 
   subprojects, 
   onSubprojectClick, 
-  onSubprojectDrop 
+  onSubprojectDrop,
+  allProjects,
+  allSubprojects
 }: SubprojectKanbanColumnProps) {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -70,6 +74,8 @@ export default function SubprojectKanbanColumn({
                 subproject={subproject}
                 onSubprojectClick={onSubprojectClick}
                 onDragStart={handleDragStart}
+                allProjects={allProjects}
+                allSubprojects={allSubprojects}
               />
             ))
           )}

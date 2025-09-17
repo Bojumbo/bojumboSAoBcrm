@@ -8,13 +8,17 @@ interface SubprojectCardProps {
   onSubprojectClick?: (subproject: SubProject) => void;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent, subproject: SubProject) => void;
+  allProjects: Array<{ project_id: number; name: string }>;
+  allSubprojects: SubProject[];
 }
 
-export default function SubprojectCard({ 
+export function SubprojectCard({
   subproject, 
   onSubprojectClick, 
   draggable = true,
-  onDragStart 
+  onDragStart,
+  allProjects,
+  allSubprojects
 }: SubprojectCardProps) {
   const handleDragStart = (e: React.DragEvent) => {
     if (onDragStart) {
@@ -53,7 +57,20 @@ export default function SubprojectCard({
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs text-gray-600">
             <FolderOpen className="h-3 w-3" />
-            <span className="truncate">Проект #{subproject.project_id}</span>
+            <span className="truncate">
+              {subproject.project_id && !subproject.parent_subproject_id ? (
+                (() => {
+                  const project = allProjects.find(p => p.project_id === subproject.project_id);
+                  return project ? `Проект: ${project.name}` : `Проект #${subproject.project_id}`;
+                })()
+              ) : subproject.parent_subproject_id ? (
+                (() => {
+                  const parent = allSubprojects.find(sp => sp.subproject_id === subproject.parent_subproject_id);
+                  return parent ? `Підпроект: ${parent.name}` : `Підпроект #${subproject.parent_subproject_id}`;
+                })()
+              ) : 'Без привʼязки'
+            }
+            </span>
           </div>
           
           {subproject.status && (

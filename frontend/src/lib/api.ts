@@ -270,6 +270,17 @@ export interface SubProjectFunnelsResponse {
 }
 
 export const subprojectsAPI = {
+  create: async (subprojectData: Partial<SubProject>): Promise<SubProjectResponse> => {
+    try {
+      const response = await api.post('/subprojects', subprojectData);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Помилка створення підпроекту',
+      };
+    }
+  },
   getAll: async (projectId?: number): Promise<SubProjectsResponse> => {
     try {
       const url = projectId 
