@@ -226,23 +226,29 @@ export default function SubprojectsKanban({
           <CreateSubprojectForm
             currentManagerId={1} // TODO: замінити на реальний id поточного менеджера
             onSubmit={async (data) => {
-              // Конвертуємо secondary_responsible_managers у масив об'єктів
-              const payload = {
-                ...data,
-                secondary_responsible_managers: Array.isArray(data.secondary_responsible_managers)
-                  ? data.secondary_responsible_managers.map((id: number) => ({ manager_id: id }))
-                  : [],
-              };
-              await subprojectsAPI.create({
-                ...payload,
-                secondary_responsible_managers: (payload.secondary_responsible_managers || []).map(obj => obj.manager_id)
-              });
+              // Формуємо payload згідно вимог бекенду
+              const payload: any = { ...data };
+              // secondary_responsible_managers має бути масивом чисел
+              if (Array.isArray(data.secondary_responsible_managers)) {
+                payload.secondary_responsible_managers = data.secondary_responsible_managers;
+              }
+              // Передаємо тільки одне з полів: project_id або parent_subproject_id
+              if (payload.project_id && payload.parent_subproject_id) {
+                // Якщо обидва вибрані, залишаємо тільки parent_subproject_id
+                payload.project_id = null;
+              }
+              if (!payload.project_id && !payload.parent_subproject_id) {
+                // Якщо не вибрано нічого, не надсилаємо запит
+                alert('Потрібно вибрати проект або батьківський підпроект');
+                return;
+              }
+              await subprojectsAPI.create(payload);
               setIsCreateDialogOpen(false);
               loadSubprojects();
             }}
-            projects={subprojects.filter(sp => typeof sp.project_id === 'number' && sp.project_id !== null).map(sp => ({
-              project_id: sp.project_id as number,
-              name: sp.name,
+            projects={availableProjects.map(p => ({
+              project_id: p.project_id,
+              name: p.name,
               forecast_amount: '',
               created_at: '',
               updated_at: ''

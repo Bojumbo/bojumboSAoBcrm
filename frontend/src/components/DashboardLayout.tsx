@@ -38,7 +38,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+  <div className="min-h-screen bg-gray-50 overflow-auto">
       <Sidebar 
         collapsed={sidebarCollapsed} 
         onCollapsedChange={setSidebarCollapsed}

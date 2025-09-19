@@ -237,46 +237,47 @@ export const HierarchicalSelect = ({ projects, subprojects, value, onChange, pla
         </span>
         <div className="flex items-center">
             {selectedItemLabel && (
-                <button 
-                  type="button" 
+                <span 
                   onClick={handleClear} 
-                  className="mr-1 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                  className="mr-1 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 cursor-pointer"
                   aria-label="Clear selection"
+                  tabIndex={0}
+                  role="button"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
                     <path d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z" />
                   </svg>
-                </button>
+                </span>
             )}
             <ChevronDownIcon />
         </div>
       </button>
 
       {isOpen && (
-        <div className="absolute z-20 mt-2 w-full rounded-md border bg-white dark:bg-gray-800 dark:border-gray-700 shadow-lg p-2">
-          <Input
-            placeholder="Пошук..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="mb-2"
-            autoFocus
-          />
-          <ScrollArea className="max-h-64">
-            {filteredTree.length > 0 ? filteredTree.map(node => (
-              <TreeNode
-                key={node.id}
-                node={node}
-                level={0}
-                onSelect={handleSelect}
-                expandedIds={expandedIds}
-                onToggleExpand={handleToggleExpand}
-                selectedId={selectedId}
-              />
-            )) : (
-                <div className="text-center text-sm text-gray-500 py-2">Не знайдено</div>
-            )}
-          </ScrollArea>
-        </div>
+                <div className="absolute z-20 mt-2 w-full rounded-md border bg-white dark:bg-gray-800 dark:border-gray-700 shadow-lg p-2">
+                  <Input
+                    placeholder="Пошук..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="mb-2"
+                    autoFocus
+                  />
+                  <div className="max-h-[150px] overflow-y-auto w-full">
+                    {filteredTree.length > 0 ? filteredTree.map(node => (
+                      <TreeNode
+                        key={node.id}
+                        node={node}
+                        level={0}
+                        onSelect={handleSelect}
+                        expandedIds={expandedIds}
+                        onToggleExpand={handleToggleExpand}
+                        selectedId={selectedId}
+                      />
+                    )) : (
+                      <div className="text-center text-sm text-gray-500 py-2">Не знайдено</div>
+                    )}
+                  </div>
+                </div>
       )}
     </div>
   );

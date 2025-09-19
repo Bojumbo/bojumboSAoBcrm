@@ -20,11 +20,9 @@ export default function SubprojectsPage() {
 
   return (
     <DashboardLayout>
-      <div className="h-full overflow-hidden">
-        <SubprojectsKanban 
-          onSubprojectClick={handleSubprojectClick}
-        />
-      </div>
+      <SubprojectsKanban 
+        onSubprojectClick={handleSubprojectClick}
+      />
     </DashboardLayout>
   );
 }
