@@ -173,8 +173,8 @@ const CreateSubprojectForm = ({ currentManagerId, onSubmit, projects, subproject
 
   return (
     <Card className="max-w-3xl w-full mx-auto">
-      <CardContent className="p-6">
-        <form className="space-y-6" onSubmit={handleSubmit}>
+      <CardContent className="p-6 overflow-y-auto max-h-[80vh] md:max-h-[calc(100vh-64px)]">
+  <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
             <Label htmlFor="subprojectName">Назва підпроекту <span className="text-red-500">*</span></Label>
             <Input id="subprojectName" value={form.name} onChange={e => handleChange('name', e.target.value)} required />

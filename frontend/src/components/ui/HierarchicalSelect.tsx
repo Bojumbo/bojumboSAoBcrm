@@ -226,16 +226,16 @@ export const HierarchicalSelect = ({ projects, subprojects, value, onChange, pla
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative w-full" ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen(v => !v)}
-        className="w-full flex h-10 items-center justify-between rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm ring-offset-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:placeholder:text-gray-400 dark:ring-offset-gray-900"
+        className="w-full flex h-12 sm:h-10 items-center justify-between rounded-md border border-gray-300 bg-transparent px-4 sm:px-3 py-3 sm:py-2 text-base sm:text-sm ring-offset-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:placeholder:text-gray-400 dark:ring-offset-gray-900"
       >
-        <span className={`truncate ${selectedItemLabel ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}>
+        <span className={`truncate flex-1 ${selectedItemLabel ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}>
           {selectedItemLabel || placeholder}
         </span>
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
             {selectedItemLabel && (
                 <span 
                   onClick={handleClear} 
@@ -244,40 +244,42 @@ export const HierarchicalSelect = ({ projects, subprojects, value, onChange, pla
                   tabIndex={0}
                   role="button"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-5 h-5 sm:w-4 sm:h-4">
                     <path d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z" />
                   </svg>
                 </span>
             )}
-            <ChevronDownIcon />
+            <span className="flex items-center">
+              <ChevronDownIcon />
+            </span>
         </div>
       </button>
 
       {isOpen && (
-                <div className="absolute z-20 mt-2 w-full rounded-md border bg-white dark:bg-gray-800 dark:border-gray-700 shadow-lg p-2">
-                  <Input
-                    placeholder="Пошук..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="mb-2"
-                    autoFocus
-                  />
-                  <div className="max-h-[150px] overflow-y-auto w-full">
-                    {filteredTree.length > 0 ? filteredTree.map(node => (
-                      <TreeNode
-                        key={node.id}
-                        node={node}
-                        level={0}
-                        onSelect={handleSelect}
-                        expandedIds={expandedIds}
-                        onToggleExpand={handleToggleExpand}
-                        selectedId={selectedId}
-                      />
-                    )) : (
-                      <div className="text-center text-sm text-gray-500 py-2">Не знайдено</div>
-                    )}
-                  </div>
-                </div>
+  <div className="w-full rounded-md border bg-white dark:bg-gray-800 dark:border-gray-700 shadow-lg p-2 sm:p-2 max-h-[70vh] sm:max-h-[320px] overflow-y-auto">
+          <Input
+            placeholder="Пошук..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="mb-2 text-base sm:text-sm px-4 sm:px-2 py-3 sm:py-2"
+            autoFocus
+          />
+          <div className="w-full">
+            {filteredTree.length > 0 ? filteredTree.map(node => (
+              <TreeNode
+                key={node.id}
+                node={node}
+                level={0}
+                onSelect={handleSelect}
+                expandedIds={expandedIds}
+                onToggleExpand={handleToggleExpand}
+                selectedId={selectedId}
+              />
+            )) : (
+              <div className="text-center text-base sm:text-sm text-gray-500 py-2">Не знайдено</div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

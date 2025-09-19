@@ -38,7 +38,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
   }
 
   return (
-  <div className="min-h-screen bg-gray-50 overflow-auto">
+  <div className="min-h-screen bg-gray-50">
       <Sidebar 
         collapsed={sidebarCollapsed} 
         onCollapsedChange={setSidebarCollapsed}
@@ -55,7 +55,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
             <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
           </header>
         )}
-        <main className={`flex-1 ${title ? 'pt-0' : 'pt-16 lg:pt-0'}`}>
+  <main className={`flex-1 min-h-screen ${title ? 'pt-0' : 'pt-16 lg:pt-0'}`}>
           {children}
         </main>
       </div>
