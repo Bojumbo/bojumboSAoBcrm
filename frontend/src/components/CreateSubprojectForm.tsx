@@ -1,51 +1,50 @@
-  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
-// ...existing code...
-}
-import React, { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { managerService } from '@/services/managerService';
-import { subProjectFunnelService } from '@/services/subProjectFunnelService';
-import { projectService } from '@/services/projectService';
-import { SubProjectFormData, Manager, SubProjectFunnel, SubProjectFunnelStage, Project } from '@/types/projects';
+
+import React, { useEffect, useState, useMemo } from 'react';
+import { Button } from './ui/button';
+import { Card, CardContent } from './ui/card';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { ScrollArea } from './ui/scroll-area';
+import { managerService } from '../services/managerService';
+import { subProjectFunnelService } from '../services/subProjectFunnelService';
+import { SubProjectFormData, Manager, SubProjectFunnel, SubProjectFunnelStage, Project, Subproject } from '../types/projects';
+import { CustomSelect } from './CustomSelect';
+import { useClickOutside } from '../hooks/useClickOutside';
+import { HierarchicalSelect } from './ui/HierarchicalSelect';
+
 
 interface CreateSubprojectFormProps {
   currentManagerId: number;
   onSubmit: (data: SubProjectFormData) => void;
   projects: Project[];
-  subprojects: { subproject_id: number; name: string; project_id: number | null; parent_subproject_id: number | null }[];
+  subprojects: Subproject[];
 }
 
-export default function CreateSubprojectForm({ currentManagerId, onSubmit, projects, subprojects }: CreateSubprojectFormProps) {
-  const [showManagerDropdown, setShowManagerDropdown] = useState(false);
-  const [showFunnelDropdown, setShowFunnelDropdown] = useState(false);
-  const [showStageDropdown, setShowStageDropdown] = useState(false);
-  const [form, setForm] = useState({
+const CreateSubprojectForm = ({ currentManagerId, onSubmit, projects, subprojects }: CreateSubprojectFormProps) => {
+  const [form, setForm] = useState<SubProjectFormData>({
     name: '',
     description: '',
     cost: '',
-    sub_project_funnel_id: undefined as number | undefined,
-    sub_project_funnel_stage_id: undefined as number | undefined,
+    sub_project_funnel_id: undefined,
+    sub_project_funnel_stage_id: undefined,
     main_responsible_manager_id: currentManagerId,
-    secondary_responsible_managers: [] as { manager_id: number }[],
-    project_id: null as number | null,
-    parent_subproject_id: null as number | null,
+    secondary_responsible_managers: [],
+    project_id: null,
+    parent_subproject_id: null,
     status: '',
   });
+  
   const [managers, setManagers] = useState<Manager[]>([]);
   const [funnels, setFunnels] = useState<SubProjectFunnel[]>([]);
   const [stages, setStages] = useState<SubProjectFunnelStage[]>([]);
-  const [searchManager, setSearchManager] = useState('');
+
   const [searchAdditionalManager, setSearchAdditionalManager] = useState('');
   const [showAdditionalManagersDropdown, setShowAdditionalManagersDropdown] = useState(false);
-  const [searchProject, setSearchProject] = useState('');
-  const [searchSubproject, setSearchSubproject] = useState('');
+
+  const additionalManagerDropdownRef = useClickOutside<HTMLDivElement>(() => {
+      setShowAdditionalManagersDropdown(false);
+  });
 
   useEffect(() => {
     managerService.getAll().then(setManagers);
@@ -59,22 +58,27 @@ export default function CreateSubprojectForm({ currentManagerId, onSubmit, proje
     } else {
       setStages([]);
     }
+    // Reset stage when funnel changes
+    setForm(prev => ({ ...prev, sub_project_funnel_stage_id: undefined }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.sub_project_funnel_id, funnels]);
 
   const handleChange = (field: keyof SubProjectFormData, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleManagerChange = (managerId: number) => {
-    if (managerId !== currentManagerId) {
+  const handleManagerChange = (managerId: number | null) => {
+    const newManagerId = managerId ?? currentManagerId;
+    if (newManagerId !== currentManagerId) {
       setForm(prev => ({
         ...prev,
-        main_responsible_manager_id: managerId,
-        secondary_responsible_managers: Array.from(new Set([...(prev.secondary_responsible_managers || []).map(obj => obj.manager_id), currentManagerId]))
+        main_responsible_manager_id: newManagerId,
+        secondary_responsible_managers: Array.from(new Set([...prev.secondary_responsible_managers.map(obj => obj.manager_id), currentManagerId]))
+          .filter(id => id !== newManagerId)
           .map(id => ({ manager_id: id }))
       }));
     } else {
-      setForm(prev => ({ ...prev, main_responsible_manager_id: managerId }));
+      setForm(prev => ({ ...prev, main_responsible_manager_id: newManagerId }));
     }
   };
 
@@ -91,140 +95,177 @@ export default function CreateSubprojectForm({ currentManagerId, onSubmit, proje
     });
   };
 
+  const handleParentChange = (selection: { type: 'project' | 'subproject', id: number } | null) => {
+    if (!selection) {
+      setForm(prev => ({ ...prev, project_id: null, parent_subproject_id: null }));
+      return;
+    }
+  
+    if (selection.type === 'project') {
+      setForm(prev => ({ ...prev, project_id: selection.id, parent_subproject_id: null }));
+    } else { // 'subproject'
+      // Find the root project of the selected parent subproject
+      let current = subprojects.find(sp => sp.subproject_id === selection.id);
+      if (current?.project_id) {
+         setForm(prev => ({
+           ...prev,
+           project_id: current!.project_id,
+           parent_subproject_id: selection.id
+         }));
+      } else {
+          // Fallback or error handling if a subproject doesn't have a direct project_id
+          // For this data model, we assume it always does.
+          console.error("Could not determine project for selected subproject");
+      }
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.sub_project_funnel_stage_id) return;
-    // Формуємо payload згідно з очікуваннями бекенду
-    const payload: any = {
-      name: form.name,
-      description: form.description,
-      cost: parseFloat(form.cost) || 0,
-      project_id: form.project_id ?? null,
-      parent_subproject_id: form.parent_subproject_id ?? null,
-      sub_project_funnel_id: form.sub_project_funnel_id,
-      sub_project_funnel_stage_id: form.sub_project_funnel_stage_id,
-      main_responsible_manager_id: form.main_responsible_manager_id,
-      status: form.status || undefined,
-      secondary_responsible_managers: form.secondary_responsible_managers || [],
+    if (!form.name || !form.sub_project_funnel_stage_id) {
+        alert("Будь ласка, заповніть обов'язкові поля: Назва та Етап воронки.");
+        return;
+    }
+    
+    const payload: SubProjectFormData = {
+      ...form,
+      cost: form.cost ? parseFloat(form.cost).toString() : '0',
     };
     onSubmit(payload);
   };
+  
+  const managerOptions = useMemo(() => 
+    managers.map(m => ({ value: m.manager_id, label: `${m.first_name} ${m.last_name}` })), [managers]);
+  
+  const funnelOptions = useMemo(() =>
+    funnels.map(f => ({ value: f.sub_project_funnel_id, label: f.name })), [funnels]);
+    
+  const stageOptions = useMemo(() => 
+    stages.map(s => ({ value: s.sub_project_funnel_stage_id, label: s.name })), [stages]);
+
+  const availableAdditionalManagers = useMemo(() => 
+    managers.filter(m => m.manager_id !== form.main_responsible_manager_id),
+    [managers, form.main_responsible_manager_id]
+  );
+  
+  const filteredAdditionalManagers = useMemo(() =>
+    availableAdditionalManagers.filter(m => `${m.first_name} ${m.last_name}`.toLowerCase().includes(searchAdditionalManager.toLowerCase())),
+    [availableAdditionalManagers, searchAdditionalManager]
+  );
+  
+  const selectedAdditionalManagersNames = useMemo(() =>
+    managers
+      .filter(m => form.secondary_responsible_managers.some(obj => obj.manager_id === m.manager_id))
+      .map(m => `${m.first_name} ${m.last_name}`)
+      .join(', '),
+    [managers, form.secondary_responsible_managers]
+  );
+  
+  const selectedParentValue = useMemo(() => {
+    if (form.parent_subproject_id) {
+      return { type: 'subproject' as const, id: form.parent_subproject_id };
+    }
+    if (form.project_id) {
+      return { type: 'project' as const, id: form.project_id };
+    }
+    return null;
+  }, [form.project_id, form.parent_subproject_id]);
 
   return (
-    <Card className="max-w-xl w-full mx-auto">
+    <Card className="max-w-3xl w-full mx-auto">
       <CardContent className="p-6">
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
-            <Label>Назва підпроекту</Label>
-            <Input value={form.name} onChange={e => handleChange('name', e.target.value)} required />
-          </div>
-          <div>
-            <Label>Опис</Label>
-            <Textarea value={form.description} onChange={e => handleChange('description', e.target.value)} />
-          </div>
-          <div className="relative">
-            <Label>Відповідальний менеджер</Label>
-            <button
-              type="button"
-              className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1"
-              onClick={() => setShowManagerDropdown(v => !v)}
-              tabIndex={0}
-              onBlur={() => setShowManagerDropdown(false)}
-            >
-              <span>
-                {managers.find(m => m.manager_id === form.main_responsible_manager_id)?.first_name || 'Оберіть менеджера'}
-                {managers.find(m => m.manager_id === form.main_responsible_manager_id)?.last_name ? ' ' + managers.find(m => m.manager_id === form.main_responsible_manager_id)?.last_name : ''}
-              </span>
-              <svg className="ml-2 h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" /></svg>
-            </button>
-            {showManagerDropdown && (
-              <div className="absolute z-10 mt-2 w-full bg-white border rounded shadow-lg">
-                <Input placeholder="Пошук..." value={searchManager} onChange={e => setSearchManager(e.target.value)} className="mb-2" />
-                <ScrollArea className="max-h-48">
-                  {managers.filter(m => `${m.first_name} ${m.last_name}`.toLowerCase().includes(searchManager.toLowerCase())).map(m => (
-                    <button
-                      key={m.manager_id}
-                      type="button"
-                      className={`w-full text-left px-2 py-1 hover:bg-accent ${form.main_responsible_manager_id === m.manager_id ? 'bg-accent' : ''}`}
-                      onClick={() => { handleManagerChange(m.manager_id); setShowManagerDropdown(false); }}
-                    >
-                      {m.first_name} {m.last_name}
-                    </button>
-                  ))}
-                </ScrollArea>
-              </div>
-            )}
-          </div>
-          <div className="relative">
-            <Label>Додаткові менеджери</Label>
-            <Button type="button" variant="outline" className="w-full text-left" onClick={() => setShowAdditionalManagersDropdown(v => !v)}>
-              {form.secondary_responsible_managers.length > 0
-                ? `Обрано: ${managers.filter(m => form.secondary_responsible_managers.some(obj => obj.manager_id === m.manager_id)).map(m => m.first_name + ' ' + m.last_name).join(', ')}`
-                : 'Оберіть додаткових менеджерів'}
-            </Button>
-            {showAdditionalManagersDropdown && (
-              <div>
-                <div className="absolute z-10 mt-2 w-full bg-white border rounded shadow-lg p-2">
-                  <Input placeholder="Пошук..." value={searchAdditionalManager} onChange={e => setSearchAdditionalManager(e.target.value)} className="mb-2" />
-                  <ScrollArea className="max-h-48">
-                    {managers.filter(m => `${m.first_name} ${m.last_name}`.toLowerCase().includes(searchAdditionalManager.toLowerCase())).map(m => (
-                      <label key={m.manager_id} className="flex items-center gap-2 py-1 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={form.secondary_responsible_managers.some(obj => obj.manager_id === m.manager_id)}
-                          onChange={() => handleAdditionalManagersChange(m.manager_id)}
-                        />
-                        <span>{m.first_name} {m.last_name}</span>
-                      </label>
-                    ))}
-                  </ScrollArea>
-                  <div className="pt-2 text-right">
-                    <Button type="button" size="sm" onClick={() => setShowAdditionalManagersDropdown(false)}>Готово</Button>
-                  </div>
-                </div>
-              </div>
-            )}
+            <Label htmlFor="subprojectName">Назва підпроекту <span className="text-red-500">*</span></Label>
+            <Input id="subprojectName" value={form.name} onChange={e => handleChange('name', e.target.value)} required />
           </div>
           <div>
-            <Label>Прогнозована сума</Label>
-            <Input type="number" value={form.cost} onChange={e => handleChange('cost', e.target.value)} />
+            <Label htmlFor="description">Опис</Label>
+            <Textarea id="description" value={form.description} onChange={e => handleChange('description', e.target.value)} />
           </div>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Label>Воронка</Label>
-              <div>
-                <button
-                  type="button"
-                  className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1"
-                  onClick={() => setShowFunnelDropdown(v => !v)}
-                  tabIndex={0}
-                  onBlur={() => setShowFunnelDropdown(false)}
-                >
-                  <span>
-                    {funnels.find(f => f.sub_project_funnel_id === form.sub_project_funnel_id)?.name || 'Оберіть воронку'}
-                  </span>
-                  <svg className="ml-2 h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" /></svg>
-                </button>
-                {showFunnelDropdown && (
-                  <div className="absolute z-10 mt-2 w-full bg-white border rounded shadow-lg">
-                    <ScrollArea className="max-h-48">
-                      {funnels.filter(f => f.name.toLowerCase().includes(searchManager.toLowerCase())).map(funnel => (
-                        <button
-                          key={funnel.sub_project_funnel_id}
-                          type="button"
-                          className={`w-full text-left px-2 py-1 hover:bg-accent ${form.sub_project_funnel_id === funnel.sub_project_funnel_id ? 'bg-accent' : ''}`}
-                          onClick={() => { handleChange('sub_project_funnel_id', funnel.sub_project_funnel_id); setShowFunnelDropdown(false); }}
-                        >
-                          {funnel.name}
-                        </button>
-                      ))}
-                    </ScrollArea>
-                  </div>
-                )}
-              </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label>Відповідальний менеджер</Label>
+              <CustomSelect
+                options={managerOptions}
+                value={form.main_responsible_manager_id}
+                onChange={handleManagerChange}
+                placeholder="Оберіть менеджера"
+              />
             </div>
+            <div className="relative" ref={additionalManagerDropdownRef}>
+                <Label>Додаткові менеджери</Label>
+                <button type="button" className="w-full text-left flex h-10 items-center justify-between rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm ring-offset-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:ring-offset-gray-900 truncate" onClick={() => setShowAdditionalManagersDropdown(v => !v)}>
+                  <span className={selectedAdditionalManagersNames ? '' : 'text-gray-500 dark:text-gray-400'}>
+                    {selectedAdditionalManagersNames || 'Оберіть менеджерів'}
+                  </span>
+                </button>
+                {showAdditionalManagersDropdown && (
+                    <div className="absolute z-20 mt-2 w-full bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-md shadow-lg p-2">
+                      <Input placeholder="Пошук..." value={searchAdditionalManager} onChange={e => setSearchAdditionalManager(e.target.value)} className="mb-2" />
+                      <ScrollArea className="max-h-48">
+                        {filteredAdditionalManagers.map(m => (
+                          <label key={m.manager_id} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              checked={form.secondary_responsible_managers.some(obj => obj.manager_id === m.manager_id)}
+                              onChange={() => handleAdditionalManagersChange(m.manager_id)}
+                            />
+                            <span>{m.first_name} {m.last_name}</span>
+                          </label>
+                        ))}
+                      </ScrollArea>
+                    </div>
+                )}
+            </div>
+          </div>
+          
+          <div>
+            <Label htmlFor="cost">Прогнозована сума</Label>
+            <Input id="cost" type="number" value={form.cost} onChange={e => handleChange('cost', e.target.value)} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <Label>Воронка <span className="text-red-500">*</span></Label>
+                <CustomSelect
+                    options={funnelOptions}
+                    value={form.sub_project_funnel_id}
+                    onChange={(value) => handleChange('sub_project_funnel_id', value)}
+                    placeholder="Оберіть воронку"
+                />
+            </div>
+            <div>
+                <Label>Етап <span className="text-red-500">*</span></Label>
+                <CustomSelect
+                    options={stageOptions}
+                    value={form.sub_project_funnel_stage_id}
+                    onChange={(value) => handleChange('sub_project_funnel_stage_id', value)}
+                    placeholder="Оберіть етап"
+                    disabled={!form.sub_project_funnel_id}
+                />
+            </div>
+          </div>
+
+          <div>
+            <Label>Проект / Батьківський підпроект</Label>
+            <HierarchicalSelect
+              projects={projects}
+              subprojects={subprojects}
+              value={selectedParentValue}
+              onChange={handleParentChange}
+              placeholder="Оберіть прив'язку"
+            />
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <Button type="submit" size="lg">Створити підпроект</Button>
           </div>
         </form>
       </CardContent>
     </Card>
+  );
 }
+export default CreateSubprojectForm;
