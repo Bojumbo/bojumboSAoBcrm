@@ -230,7 +230,9 @@ export default function SubprojectsKanban({
               const payload: any = { ...data };
               // secondary_responsible_managers має бути масивом чисел
               if (Array.isArray(data.secondary_responsible_managers)) {
-                payload.secondary_responsible_managers = data.secondary_responsible_managers;
+                payload.secondary_responsible_managers = data.secondary_responsible_managers.map(obj =>
+                  typeof obj === 'number' ? obj : obj.manager_id
+                );
               }
               // Передаємо тільки одне з полів: project_id або parent_subproject_id
               if (payload.project_id && payload.parent_subproject_id) {
