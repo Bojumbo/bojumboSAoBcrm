@@ -255,8 +255,8 @@ export const HierarchicalSelect = ({ projects, subprojects, value, onChange, pla
         </div>
       </button>
 
-      {isOpen && (
-  <div className="w-full rounded-md border bg-white dark:bg-gray-800 dark:border-gray-700 shadow-lg p-2 sm:p-2 max-h-[70vh] sm:max-h-[320px] overflow-y-auto">
+    {isOpen && (
+  <div className="w-full rounded-md border bg-white dark:bg-gray-800 dark:border-gray-700 shadow-lg p-2 sm:p-2 max-h-[40vh] sm:max-h-[320px] overflow-y-auto">
           <Input
             placeholder="Пошук..."
             value={searchTerm}

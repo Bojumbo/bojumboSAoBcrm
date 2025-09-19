@@ -218,11 +218,11 @@ export default function SubprojectsKanban({
       </div>
       {/* Діалог створення підпроекту */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl w-full">
+  <DialogContent className="max-w-2xl w-full flex flex-col overflow-y-auto min-h-[60vh] max-h-[95vh]">
+          <DialogTitle>Створення підпроекту</DialogTitle>
           <DialogDescription>
             Створіть новий підпроект, заповнивши всі обов'язкові поля.
           </DialogDescription>
-          <DialogTitle>Створення підпроекту</DialogTitle>
           <CreateSubprojectForm
             currentManagerId={1} // TODO: замінити на реальний id поточного менеджера
             onSubmit={async (data) => {
