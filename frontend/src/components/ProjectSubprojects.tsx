@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import SubProjectEditDialog from './SubProjectEditDialog';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -187,13 +186,6 @@ export default function ProjectSubprojects({ projectId }: ProjectSubprojectsProp
         </div>
       )}
       {/* Діалог створення підпроекту */}
-      <SubProjectEditDialog
-        isOpen={isCreateDialogOpen}
-        onClose={() => setIsCreateDialogOpen(false)}
-        onSave={() => { setIsCreateDialogOpen(false); fetchSubprojects(); }}
-        mode="create"
-        projectId={projectId}
-      />
     </div>
   );
 }

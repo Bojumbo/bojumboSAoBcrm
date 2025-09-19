@@ -1,5 +1,7 @@
+import { DialogTitle } from '@/components/ui/dialog';
 import { useState, useEffect } from 'react';
-import SubProjectEditDialog from './SubProjectEditDialog';
+import { Dialog, DialogContent, DialogDescription } from '@/components/ui/dialog';
+import CreateSubprojectForm from './CreateSubprojectForm';
 import { projectsAPI } from '@/lib/api';
 import { SubProjectFunnel, SubProjectFunnelStage, SubProject } from '@/types/projects';
 import { subprojectsAPI, subprojectFunnelsAPI } from '@/lib/api';
@@ -66,7 +68,14 @@ export default function SubprojectsKanban({
 
   const handleSubprojectDrop = async (subprojectId: number, stageId: number) => {
     try {
-      const response = await subprojectsAPI.updateStage(subprojectId, stageId);
+      // Знаходимо підпроект для передачі project_id/parent_subproject_id
+      const subproject = subprojects.find(sp => sp.subproject_id === subprojectId);
+      let payload: any = { sub_project_funnel_stage_id: stageId };
+      if (subproject) {
+        if (subproject.project_id) payload.project_id = subproject.project_id;
+        if (subproject.parent_subproject_id) payload.parent_subproject_id = subproject.parent_subproject_id;
+      }
+      const response = await subprojectsAPI.updateStage(subprojectId, payload);
       if (response.success) {
         await loadSubprojects(); // Перезавантажуємо підпроекти
       } else {
@@ -208,14 +217,45 @@ export default function SubprojectsKanban({
         )}
       </div>
       {/* Діалог створення підпроекту */}
-      <SubProjectEditDialog
-        isOpen={isCreateDialogOpen}
-        onClose={() => setIsCreateDialogOpen(false)}
-        onSave={() => { setIsCreateDialogOpen(false); loadSubprojects(); }}
-        mode="create"
-        availableProjects={availableProjects}
-  availableSubprojects={subprojects.map(sp => ({ subproject_id: sp.subproject_id, name: sp.name, project_id: sp.project_id, parent_subproject_id: sp.parent_subproject_id }))}
-      />
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-2xl w-full">
+          <DialogDescription>
+            Створіть новий підпроект, заповнивши всі обов'язкові поля.
+          </DialogDescription>
+          <DialogTitle>Створення підпроекту</DialogTitle>
+          <CreateSubprojectForm
+            currentManagerId={1} // TODO: замінити на реальний id поточного менеджера
+            onSubmit={async (data) => {
+              // Конвертуємо secondary_responsible_managers у масив об'єктів
+              const payload = {
+                ...data,
+                secondary_responsible_managers: Array.isArray(data.secondary_responsible_managers)
+                  ? data.secondary_responsible_managers.map((id: number) => ({ manager_id: id }))
+                  : [],
+              };
+              await subprojectsAPI.create({
+                ...payload,
+                secondary_responsible_managers: (payload.secondary_responsible_managers || []).map(obj => obj.manager_id)
+              });
+              setIsCreateDialogOpen(false);
+              loadSubprojects();
+            }}
+            projects={subprojects.filter(sp => typeof sp.project_id === 'number' && sp.project_id !== null).map(sp => ({
+              project_id: sp.project_id as number,
+              name: sp.name,
+              forecast_amount: '',
+              created_at: '',
+              updated_at: ''
+            }))}
+            subprojects={subprojects.map(sp => ({
+              subproject_id: sp.subproject_id,
+              name: sp.name,
+              project_id: sp.project_id ?? null,
+              parent_subproject_id: sp.parent_subproject_id ?? null
+            }))}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

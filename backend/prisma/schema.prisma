@@ -26,6 +26,8 @@ model Manager {
   projects_as_main      Project[]           @relation("ProjectMainManager")
   sales                 Sale[]
   subproject_comments   SubProjectComment[]
+  subprojects_as_main   SubProject[]        @relation("SubProjectMainManager")
+  subprojects_as_secondary SubProjectManager[]
   tasks_as_creator      Task[]              @relation("TaskCreatorManager")
   tasks_as_responsible  Task[]              @relation("TaskResponsibleManager")
   managers_A            Manager[]           @relation("ManagerSupervisors")
@@ -276,6 +278,7 @@ model SubProject {
   updated_at                  DateTime               @updatedAt
   sub_project_funnel_id       Int?
   sub_project_funnel_stage_id Int?
+  main_responsible_manager_id Int?
   sales                       Sale[]
   comments                    SubProjectComment[]
   products                    SubProjectProduct[]
@@ -285,12 +288,21 @@ model SubProject {
   children                    SubProject[]           @relation("SubProjectParent")
   funnel                      SubProjectFunnel?      @relation(fields: [sub_project_funnel_id], references: [sub_project_funnel_id])
   funnel_stage                SubProjectFunnelStage? @relation(fields: [sub_project_funnel_stage_id], references: [sub_project_funnel_stage_id])
+  main_responsible_manager    Manager?               @relation("SubProjectMainManager", fields: [main_responsible_manager_id], references: [manager_id])
+  secondary_responsible_managers SubProjectManager[]
   tasks                       Task[]
+}
 
-  @@map("subprojects")
-  @@index([parent_subproject_id])
-  @@index([project_id])
-  // Валідація: або project_id, або parent_subproject_id має бути заповнено, але не обидва одночасно
+model SubProjectManager {
+  subproject_id Int
+  manager_id Int
+  created_at DateTime @default(now())
+  manager Manager @relation(fields: [manager_id], references: [manager_id], onDelete: Cascade)
+  subproject SubProject @relation(fields: [subproject_id], references: [subproject_id], onDelete: Cascade)
+
+  @@id([subproject_id, manager_id])
+  @@map("subproject_managers")
+
 }
 
 model Task {

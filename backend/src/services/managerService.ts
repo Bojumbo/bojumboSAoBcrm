@@ -31,8 +31,8 @@ export class ManagerService {
     const managers = await prisma.manager.findMany({
       where: whereClause,
       include: {
-        supervisors: true,
-        subordinates: true
+        managers_A: true,
+        managers_B: true
       }
     });
     return managers as unknown as ManagerWithRelations[];

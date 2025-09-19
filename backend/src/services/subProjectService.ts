@@ -268,6 +268,21 @@ export class SubProjectService {
     const subProject = await prisma.subProject.create({
       data: createData
     });
+
+    // Додаємо додаткових менеджерів, якщо передано
+    if (Array.isArray(data.secondary_responsible_managers) && data.secondary_responsible_managers.length > 0) {
+      await Promise.all(
+        data.secondary_responsible_managers.map((managerId: number) =>
+          prisma.subProjectManager.create({
+            data: {
+              subproject_id: subProject.subproject_id,
+              manager_id: managerId
+            }
+          })
+        )
+      );
+    }
+
     return toSubProject(subProject);
   }
 

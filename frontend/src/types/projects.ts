@@ -1,3 +1,15 @@
+// Дані для форми створення/редагування підпроекту
+export interface SubProjectFormData {
+  name: string;
+  description: string;
+  cost: string;
+  sub_project_funnel_id?: number;
+  sub_project_funnel_stage_id?: number;
+  main_responsible_manager_id?: number;
+  secondary_responsible_managers: number[];
+  project_id?: number | null;
+  parent_subproject_id?: number | null;
+}
 export interface Funnel {
   funnel_id: number;
   name: string;
@@ -73,10 +85,20 @@ export interface SubProject {
   cost: string;
   sub_project_funnel_id?: number;
   sub_project_funnel_stage_id?: number;
+  main_responsible_manager_id?: number;
+  main_responsible_manager?: Manager;
+  secondary_responsible_managers?: SubProjectManager[];
   created_at: string;
   updated_at: string;
   funnel?: SubProjectFunnel;
   funnel_stage?: SubProjectFunnelStage;
+}
+
+export interface SubProjectManager {
+  subproject_id: number;
+  manager_id: number;
+  created_at: string;
+  manager: Manager;
 }
 
 export interface Task {

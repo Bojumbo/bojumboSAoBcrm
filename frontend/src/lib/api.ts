@@ -320,11 +320,9 @@ export const subprojectsAPI = {
     }
   },
 
-  updateStage: async (subprojectId: number, stageId: number): Promise<SubProjectResponse> => {
+  updateStage: async (subprojectId: number, payload: any): Promise<SubProjectResponse> => {
     try {
-      const response = await api.put(`/subprojects/${subprojectId}`, {
-        sub_project_funnel_stage_id: stageId
-      });
+      const response = await api.put(`/subprojects/${subprojectId}`, payload);
       return response.data;
     } catch (error: any) {
       return {
@@ -333,6 +331,17 @@ export const subprojectsAPI = {
       };
     }
   },
+    updateStage: async (subprojectId: number, payload: any): Promise<SubProjectResponse> => {
+      try {
+        const response = await api.put(`/subprojects/${subprojectId}`, payload);
+        return response.data;
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.response?.data?.error || 'Помилка оновлення етапу підпроекту',
+        };
+      }
+    },
 };
 
 export const subprojectFunnelsAPI = {

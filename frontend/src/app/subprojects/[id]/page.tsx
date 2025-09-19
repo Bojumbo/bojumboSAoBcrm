@@ -11,7 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, GitBranch, Euro, Calendar, FileText, Edit, Package, Settings, MessageSquare, CheckSquare } from 'lucide-react';
-import SubProjectEditDialog from '@/components/SubProjectEditDialog';
 
 export default function SubprojectDetailPage() {
   const params = useParams();
@@ -272,15 +271,6 @@ export default function SubprojectDetailPage() {
         </Tabs>
       </div>
 
-      {/* Діалог редагування */}
-      {subproject && (
-        <SubProjectEditDialog
-          subproject={subproject}
-          isOpen={isEditDialogOpen}
-          onClose={() => setIsEditDialogOpen(false)}
-          onSave={handleSubprojectUpdated}
-        />
-      )}
     </DashboardLayout>
   );
 }
