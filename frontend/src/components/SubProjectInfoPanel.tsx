@@ -22,24 +22,28 @@ export default function SubProjectInfoPanel({ subproject, onEdit }: SubProjectIn
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div>
-          <h4 className="font-semibold mb-2">Назва</h4>
-          <p className="font-bold">{subproject.name}</p>
-          {subproject.description && (
-            <p className="text-sm text-muted-foreground leading-relaxed break-words mt-2">
-              {subproject.description}
-            </p>
-          )}
-        </div>
-        <Separator />
-        <div>
-          <h4 className="font-semibold mb-2">ID підпроекту</h4>
-          <p className="font-bold">#{subproject.subproject_id}</p>
-        </div>
-        <Separator />
+        
         <div>
           <h4 className="font-semibold mb-2">Батьківський проект/підпроект</h4>
-          <p className="font-bold">{subproject.parent_subproject_id ? `#${subproject.parent_subproject_id}` : (subproject.project_id ? `#${subproject.project_id}` : '—')}</p>
+          {subproject.parent_subproject_id && subproject.parent_subproject_name ? (
+            <div className="font-bold">
+              <div className="flex items-center">
+                <Badge variant="secondary" className="mr-2">Підпроект</Badge>
+                {subproject.parent_subproject_name}
+              </div>
+              <div className="text-muted-foreground mt-1">ID: {subproject.parent_subproject_id}</div>
+            </div>
+          ) : subproject.project_id && subproject.project_name ? (
+            <div className="font-bold">
+              <div className="flex items-center">
+                <Badge variant="secondary" className="mr-2">Проект</Badge>
+                {subproject.project_name}
+              </div>
+              <div className="text-muted-foreground mt-1">ID: {subproject.project_id}</div>
+            </div>
+          ) : (
+            <span className="font-bold">—</span>
+          )}
         </div>
         <Separator />
         <div>
@@ -47,7 +51,7 @@ export default function SubProjectInfoPanel({ subproject, onEdit }: SubProjectIn
             <DollarSign className="h-4 w-4" />
             Прогнозована вартість
           </h4>
-          <p className="text-lg font-medium text-green-600">{subproject.cost}</p>
+          <p className="text-lg font-medium text-green-600">{subproject.cost} грн</p>
         </div>
         <Separator />
         <div>

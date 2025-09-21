@@ -230,7 +230,24 @@ export class SubProjectService {
       }
     }
     
-    const result = subProject ? toSubProjectWithRelations(subProject) : null;
+      let result = subProject ? toSubProjectWithRelations(subProject) : null;
+      // Додаємо main_responsible_manager безпосередньо у підпроект
+      if (result && result.project && 'main_responsible_manager' in result.project) {
+        (result as any).main_responsible_manager = (result.project as any).main_responsible_manager;
+      } else if (result) {
+        (result as any).main_responsible_manager = null;
+      }
+      // Додаємо назву проекту та батьківського підпроекту
+      if (result && result.project) {
+        (result as any).project_name = result.project.name;
+      } else if (result) {
+        (result as any).project_name = null;
+      }
+      if (result && (result as any).parent_subproject) {
+        (result as any).parent_subproject_name = (result as any).parent_subproject.name;
+      } else if (result) {
+        (result as any).parent_subproject_name = null;
+      }
     
     // Log processed result
     if (result?.sales && result.sales.length > 0 && result.sales[0].products && result.sales[0].products.length > 0) {
