@@ -188,6 +188,7 @@ export class SubProjectService {
             counterparty: true
           }
         },
+        parent: true,
         funnel: {
           include: {
             stages: {
@@ -243,8 +244,8 @@ export class SubProjectService {
       } else if (result) {
         (result as any).project_name = null;
       }
-      if (result && (result as any).parent_subproject) {
-        (result as any).parent_subproject_name = (result as any).parent_subproject.name;
+      if (result && (result as any).parent) {
+        (result as any).parent_subproject_name = (result as any).parent.name;
       } else if (result) {
         (result as any).parent_subproject_name = null;
       }

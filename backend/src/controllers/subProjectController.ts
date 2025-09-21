@@ -136,15 +136,15 @@ export class SubProjectController {
           error: 'Subproject cannot be attached to both project and subproject'
         });
       }
-      const subproject = await SubProjectService.update(id, subprojectData);
-
-      if (!subproject) {
+      const updated = await SubProjectService.update(id, subprojectData);
+      if (!updated) {
         return res.status(404).json({
           success: false,
           error: 'Subproject not found'
         });
       }
-
+      // Повертаємо повний об'єкт підпроекту з усіма зв'язками
+      const subproject = await SubProjectService.getById(id, req.user.role, req.user.manager_id);
       res.json({
         success: true,
         data: subproject

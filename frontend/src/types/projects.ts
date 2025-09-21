@@ -92,6 +92,8 @@ export interface SubProject {
   updated_at: string;
   funnel?: SubProjectFunnel;
   funnel_stage?: SubProjectFunnelStage;
+  project_name?: string;
+  parent_subproject_name?: string;
 }
 
 export interface SubProjectManager {
