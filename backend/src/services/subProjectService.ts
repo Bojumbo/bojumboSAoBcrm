@@ -305,13 +305,7 @@ export class SubProjectService {
   }
 
   static async update(id: number, data: any): Promise<SubProject | null> {
-    // Валідація: має бути або project_id, або parent_subproject_id
-    if (!data.project_id && !data.parent_subproject_id) {
-      throw new Error('Subproject must be attached to either project or another subproject');
-    }
-    if (data.project_id && data.parent_subproject_id) {
-      throw new Error('Subproject cannot be attached to both project and subproject');
-    }
+    console.log('[SubProjectService.update] called with:', { id, data });
     const updateData: any = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.description !== undefined) updateData.description = data.description;
@@ -325,10 +319,13 @@ export class SubProjectService {
     if (data.sub_project_funnel_stage_id !== undefined) updateData.sub_project_funnel_stage_id = data.sub_project_funnel_stage_id;
     else if (data.funnel_stage_id !== undefined) updateData.sub_project_funnel_stage_id = data.funnel_stage_id;
 
+    console.log('[SubProjectService.update] updateData:', updateData);
+
     const subProject = await prisma.subProject.update({
       where: { subproject_id: id },
       data: updateData
     });
+    console.log('[SubProjectService.update] prisma.subProject.update result:', subProject);
     return subProject ? toSubProject(subProject) : null;
   }
 
