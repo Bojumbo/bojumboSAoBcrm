@@ -12,17 +12,42 @@ interface SubProjectInfoPanelProps {
   onEdit?: () => void;
 }
 
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useState } from 'react';
+import { Edit } from 'lucide-react';
+import SubProjectEditDialog from './SubProjectEditDialog';
+
 export default function SubProjectInfoPanel({ subproject, onEdit }: SubProjectInfoPanelProps) {
+  const [open, setOpen] = useState(false);
+
   return (
     <Card className="h-fit sticky top-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div className="flex items-center gap-2">
           <FileText className="h-5 w-5" />
-          Інформація про підпроект
-        </CardTitle>
+          <CardTitle>Інформація про підпроект</CardTitle>
+        </div>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="icon" className="rounded-full" aria-label="Редагувати" onClick={() => setOpen(true)}>
+              <Edit className="h-5 w-5 text-muted-foreground" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Редагування підпроекту</DialogTitle>
+            </DialogHeader>
+            <SubProjectEditDialog
+              subproject={subproject}
+              isOpen={open}
+              onClose={() => setOpen(false)}
+              onSave={() => setOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </CardHeader>
       <CardContent className="space-y-6">
-        
         <div>
           <h4 className="font-semibold mb-2">Батьківський проект/підпроект</h4>
           {subproject.parent_subproject_id && subproject.parent_subproject_name ? (

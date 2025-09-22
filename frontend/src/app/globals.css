@@ -1,3 +1,28 @@
+/* Максимально специфічний стиль для overlay Dialog (shadcn/ui, Radix) */
+body > div[role="dialog"] + div,
+body > div[role="dialog"][data-radix-dialog-overlay],
+body > div[role="presentation"],
+body > div[style*="z-index"][style*="fixed"] {
+  background: rgba(255,255,255,0.7) !important;
+  backdrop-filter: blur(4px) !important;
+}
+/* Світлий напівпрозорий фон для backdrop Dialog (shadcn/ui, Radix) */
+[data-radix-dialog-overlay],
+[data-radix-dialog-overlay][data-state="open"],
+[data-radix-dialog-overlay][data-state="visible"],
+.dialog-overlay,
+body > div[style*="background-color"],
+.fixed.inset-0.bg-black\/80,
+.fixed.inset-0[data-state="open"] {
+  background: rgba(255,255,255,0.7) !important;
+  backdrop-filter: blur(4px) !important;
+}
+/* Для dark mode — світло-сірий, не чорний */
+.dark [data-radix-dialog-overlay],
+.dark .dialog-overlay,
+.dark .fixed.inset-0.bg-black\/80 {
+  background: rgba(40,40,40,0.7) !important;
+}
 @import "tailwindcss";
 @import "tw-animate-css";
 
