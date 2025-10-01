@@ -1,9 +1,13 @@
+import { NextURL } from 'next/dist/server/web/next-url';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 // Виправлена сигнатура згідно Next.js App Router
 export async function GET(req: NextRequest, context: { params: { id: string } }) {
-  const subprojectId = context.params.id;
+  // WORKAROUND for Turbopack bug in Next.js 15.5.3
+  const url = new NextURL(req.url);
+  const pathSegments = url.pathname.split('/');
+  const subprojectId = pathSegments[pathSegments.length - 1];
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   const authToken = req.cookies.get('auth_token')?.value || '';
 
@@ -26,7 +30,10 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
 
 // Додаємо обробку PUT-запиту для оновлення підпроекту
 export async function PUT(req: NextRequest, context: { params: { id: string } }) {
-  const subprojectId = context.params.id;
+  // WORKAROUND for Turbopack bug in Next.js 15.5.3
+  const url = new NextURL(req.url);
+  const pathSegments = url.pathname.split('/');
+  const subprojectId = pathSegments[pathSegments.length - 1];
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   const authToken = req.cookies.get('auth_token')?.value || '';
   const body = await req.json();
