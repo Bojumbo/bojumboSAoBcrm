@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 // Виправлена сигнатура згідно Next.js App Router
-export async function GET(req: NextRequest, context: { params: { id: string } }) {
+export async function GET(req: NextRequest) {
   // WORKAROUND for Turbopack bug in Next.js 15.5.3
   const url = new NextURL(req.url);
   const pathSegments = url.pathname.split('/');
@@ -23,13 +23,14 @@ export async function GET(req: NextRequest, context: { params: { id: string } })
       return NextResponse.json({ error: result.error || 'Не вдалося завантажити підпроект' }, { status: response.status });
     }
     return NextResponse.json(result.data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Помилка завантаження' }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Помилка завантаження';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 // Додаємо обробку PUT-запиту для оновлення підпроекту
-export async function PUT(req: NextRequest, context: { params: { id: string } }) {
+export async function PUT(req: NextRequest) {
   // WORKAROUND for Turbopack bug in Next.js 15.5.3
   const url = new NextURL(req.url);
   const pathSegments = url.pathname.split('/');
@@ -53,7 +54,8 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
       return NextResponse.json({ error: result.error || 'Не вдалося оновити підпроект' }, { status: response.status });
     }
     return NextResponse.json(result.data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Помилка оновлення' }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Помилка оновлення';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

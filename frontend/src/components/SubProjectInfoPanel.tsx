@@ -1,25 +1,57 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { SubProject } from '@/types/projects';
-import { User, Calendar, DollarSign, TrendingUp, FileText, FolderOpen } from 'lucide-react';
+import { User, Calendar, DollarSign, TrendingUp, FileText, FolderOpen, Edit } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Manager } from '@/types/users';
+import { ManagerCombobox } from './ManagerCombobox';
+import { managerService } from '@/services/managerService';
 
 interface SubProjectInfoPanelProps {
   subproject: SubProject;
   onEdit?: () => void;
+  isEditing?: boolean;
+  onCancel?: () => void;
+  onSave?: () => void;
+  onSubprojectChange?: (subproject: SubProject) => void;
 }
 
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useState } from 'react';
-import { Edit } from 'lucide-react';
-import SubProjectEditDialog from './SubProjectEditDialog';
+export default function SubProjectInfoPanel({ subproject, onEdit, isEditing, onCancel, onSave, onSubprojectChange }: SubProjectInfoPanelProps) {
+  const [managers, setManagers] = useState<Manager[]>([]);
 
-export default function SubProjectInfoPanel({ subproject, onEdit }: SubProjectInfoPanelProps) {
-  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (isEditing) {
+      const fetchManagers = async () => {
+        try {
+          const fetchedManagers = await managerService.getAllForAssignment();
+          setManagers(fetchedManagers);
+        } catch (error) {
+          console.error("Failed to fetch managers", error);
+        }
+      };
+      fetchManagers();
+    }
+  }, [isEditing]);
+
+  const handleManagerSelect = (managerId: number | null) => {
+    if (onSubprojectChange) {
+      const selectedManager = managers.find(m => m.manager_id === managerId);
+      onSubprojectChange({
+        ...subproject,
+        main_responsible_manager_id: managerId,
+        main_responsible_manager: selectedManager ? {
+            first_name: selectedManager.first_name,
+            last_name: selectedManager.last_name,
+            email: selectedManager.email
+        } : undefined
+      });
+    }
+  };
 
   return (
     <Card className="h-fit sticky top-6">
@@ -28,24 +60,9 @@ export default function SubProjectInfoPanel({ subproject, onEdit }: SubProjectIn
           <FileText className="h-5 w-5" />
           <CardTitle>Інформація про підпроект</CardTitle>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full" aria-label="Редагувати" onClick={() => setOpen(true)}>
-              <Edit className="h-5 w-5 text-muted-foreground" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Редагування підпроекту</DialogTitle>
-            </DialogHeader>
-            <SubProjectEditDialog
-              subproject={subproject}
-              isOpen={open}
-              onClose={() => setOpen(false)}
-              onSave={() => setOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Редагувати" onClick={onEdit}>
+          <Edit className="h-5 w-5 text-muted-foreground" />
+        </Button>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
@@ -80,7 +97,16 @@ export default function SubProjectInfoPanel({ subproject, onEdit }: SubProjectIn
             <DollarSign className="h-4 w-4" />
             Прогнозована вартість
           </h4>
-          <p className="text-lg font-medium text-green-600">{subproject.cost} грн</p>
+          {isEditing ? (
+            <Input 
+              type="number" 
+              value={subproject.cost} 
+              onChange={(e) => onSubprojectChange && onSubprojectChange({ ...subproject, cost: parseFloat(e.target.value) || 0 })}
+              className="text-lg font-medium" 
+            />
+          ) : (
+            <p className="text-lg font-medium text-green-600">{subproject.cost} грн</p>
+          )}
         </div>
         
         <Separator />
@@ -88,15 +114,39 @@ export default function SubProjectInfoPanel({ subproject, onEdit }: SubProjectIn
         <div>
           <h4 className="font-semibold mb-2 flex items-center gap-2">
             <User className="h-4 w-4" />
-            Менеджер підпроекту
+            Менеджери підпроекту
           </h4>
-          {subproject.main_responsible_manager ? (
+          <div className="ml-2 mb-4">
+            <p className="font-medium text-sm text-muted-foreground">Головний</p>
+            {isEditing ? (
+              <ManagerCombobox
+                managers={managers}
+                selectedManagerId={subproject.main_responsible_manager_id}
+                onSelect={handleManagerSelect}
+              />
+            ) : (
+              subproject.main_responsible_manager ? (
+                <>
+                  <span className="font-bold">{subproject.main_responsible_manager.first_name} {subproject.main_responsible_manager.last_name}</span>
+                  <div className="text-sm text-muted-foreground">{subproject.main_responsible_manager.email}</div>
+                </>
+              ) : (
+                <span className="ml-2">—</span>
+              )
+            )}
+          </div>
+
+          {subproject.secondary_responsible_managers && subproject.secondary_responsible_managers.length > 0 && (
             <div className="ml-2">
-              <span className="font-bold">{subproject.main_responsible_manager.first_name} {subproject.main_responsible_manager.last_name}</span>
-              <div className="text-sm text-muted-foreground">{subproject.main_responsible_manager.email}</div>
+              <p className="font-medium text-sm text-muted-foreground">Додаткові</p>
+              <ul className="space-y-2">
+                {subproject.secondary_responsible_managers.map(sm => (
+                  <li key={sm.manager_id} className="font-bold">
+                    {sm.manager.first_name} {sm.manager.last_name}
+                  </li>
+                ))}
+              </ul>
             </div>
-          ) : (
-            <span className="ml-2">—</span>
           )}
         </div>
         
@@ -132,6 +182,15 @@ export default function SubProjectInfoPanel({ subproject, onEdit }: SubProjectIn
             <li>Загальна сума: <span className="font-bold">—</span></li>
           </ul>
         </div>
+        
+        <Separator />
+        
+        {isEditing && (
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onCancel}>Скасувати</Button>
+            <Button onClick={onSave}>Зберегти</Button>
+          </div>
+        )}
         
       </CardContent>
     </Card>

@@ -63,7 +63,7 @@ const CreateSubprojectForm = ({ currentManagerId, onSubmit, projects, subproject
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.sub_project_funnel_id, funnels]);
 
-  const handleChange = (field: keyof SubProjectFormData, value: any) => {
+  const handleChange = (field: keyof SubProjectFormData, value: string | number | { manager_id: number }[]) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
@@ -104,18 +104,30 @@ const CreateSubprojectForm = ({ currentManagerId, onSubmit, projects, subproject
     if (selection.type === 'project') {
       setForm(prev => ({ ...prev, project_id: selection.id, parent_subproject_id: null }));
     } else { // 'subproject'
-      // Find the root project of the selected parent subproject
       let current = subprojects.find(sp => sp.subproject_id === selection.id);
-      if (current?.project_id) {
+      let rootProjectId = null;
+
+      // Traverse up the hierarchy to find the root project_id
+      while (current) {
+        if (current.project_id) {
+          rootProjectId = current.project_id;
+          break;
+        }
+        if (current.parent_subproject_id) {
+          current = subprojects.find(sp => sp.subproject_id === current!.parent_subproject_id);
+        } else {
+          break; // Reached the top of this subproject branch without finding a project
+        }
+      }
+
+      if (rootProjectId) {
          setForm(prev => ({
            ...prev,
-           project_id: current!.project_id,
+           project_id: rootProjectId,
            parent_subproject_id: selection.id
          }));
       } else {
-          // Fallback or error handling if a subproject doesn't have a direct project_id
-          // For this data model, we assume it always does.
-          console.error("Could not determine project for selected subproject");
+          console.error(`Could not determine project for selected subproject ID: ${selection.id}`);
       }
     }
   };

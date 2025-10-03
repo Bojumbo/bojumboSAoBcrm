@@ -188,6 +188,12 @@ export class SubProjectService {
             counterparty: true
           }
         },
+        main_responsible_manager: true, // Додано
+        secondary_responsible_managers: { // Додано
+          include: {
+            manager: true
+          }
+        },
         parent: true,
         funnel: {
           include: {
@@ -232,12 +238,6 @@ export class SubProjectService {
     }
     
       let result = subProject ? toSubProjectWithRelations(subProject) : null;
-      // Додаємо main_responsible_manager безпосередньо у підпроект
-      if (result && result.project && 'main_responsible_manager' in result.project) {
-        (result as any).main_responsible_manager = (result.project as any).main_responsible_manager;
-      } else if (result) {
-        (result as any).main_responsible_manager = null;
-      }
       // Додаємо назву проекту та батьківського підпроекту
       if (result && result.project) {
         (result as any).project_name = result.project.name;
@@ -311,6 +311,7 @@ export class SubProjectService {
     if (data.description !== undefined) updateData.description = data.description;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.cost !== undefined) updateData.cost = data.cost;
+    if (data.main_responsible_manager_id !== undefined) updateData.main_responsible_manager_id = data.main_responsible_manager_id;
     if (data.project_id !== undefined) updateData.project_id = data.project_id;
     if (data.parent_subproject_id !== undefined) updateData.parent_subproject_id = data.parent_subproject_id;
     // Handle both old and new field names for backward compatibility

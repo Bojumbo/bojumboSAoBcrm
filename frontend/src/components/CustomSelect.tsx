@@ -68,7 +68,7 @@ export const CustomSelect = ({ options, value, onChange, placeholder, disabled =
                   aria-label="Clear selection"
                   tabIndex={0}
                   role="button"
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleClear(e as any); }}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleClear(e as React.KeyboardEvent<HTMLSpanElement>); }}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
                     <path d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z" />

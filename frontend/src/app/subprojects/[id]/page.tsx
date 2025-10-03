@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { subProjectFunnelService } from '@/services/subProjectFunnelService';
+import SubProjectChat from "@/components/SubProjectChat";
 import SubProjectInfoPanel from "@/components/SubProjectInfoPanel";
+import { SubProjectFunnel, SubProjectFunnelStage } from "@/types/projects";
 import { MessageSquare, FileText, ShoppingCart, TrendingUp, CheckSquare } from 'lucide-react';
 
 interface SubProject {
@@ -18,6 +20,8 @@ interface SubProject {
     sub_project_funnel_stage_id?: number | null;
     funnel?: { name: string };
     funnel_stage?: { name: string };
+    main_responsible_manager?: { first_name: string; last_name: string };
+    secondary_responsible_managers?: { manager: { first_name: string; last_name: string } }[];
 	// ... інші поля
 }
 
@@ -26,15 +30,16 @@ export default function SubProjectDetailPage() {
 	const subprojectId = typeof params.id === "string" ? parseInt(params.id, 10) : null;
 
 	const [subproject, setSubproject] = useState<SubProject | null>(null);
+	const [originalSubproject, setOriginalSubproject] = useState<SubProject | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
     
-    const [funnels, setFunnels] = useState<any[]>([]);
+    const [funnels, setFunnels] = useState<SubProjectFunnel[]>([]);
     const [loadingFunnels, setLoadingFunnels] = useState(false);
     const [updatingFunnel, setUpdatingFunnel] = useState(false);
-    const [updatingStage, setUpdatingStage] = useState(false);
-
-	const fetchSubproject = async (showLoading = true) => {
+    	const [updatingStage, setUpdatingStage] = useState(false);
+    	const [isEditing, setIsEditing] = useState(false);
+	const fetchSubproject = useCallback(async (showLoading = true) => {
 		if (!subprojectId) return;
 		if (showLoading) setLoading(true);
 		setError(null);
@@ -43,12 +48,17 @@ export default function SubProjectDetailPage() {
 			if (!response.ok) throw new Error("Не вдалося завантажити підпроект");
 			const data: SubProject = await response.json();
 			setSubproject(data);
-		} catch (e: any) {
-			setError(e.message || "Сталася помилка під час завантаження даних");
+			setOriginalSubproject(data);
+		} catch (e: unknown) {
+			if (e instanceof Error) {
+				setError(e.message);
+			} else {
+				setError("An unknown error occurred");
+			}
 		} finally {
 			if (showLoading) setLoading(false);
 		}
-	};
+	}, [subprojectId]);
 	
     useEffect(() => {
 		fetchSubproject();
@@ -58,7 +68,7 @@ export default function SubProjectDetailPage() {
             setFunnels(data);
             setLoadingFunnels(false);
         });
-	}, [subprojectId]);
+	}, [fetchSubproject]);
     
     const currentStages = subproject?.sub_project_funnel_id 
         ? funnels.find(f => f.sub_project_funnel_id === subproject.sub_project_funnel_id)?.stages || []
@@ -99,6 +109,26 @@ export default function SubProjectDetailPage() {
             setUpdatingStage(false);
         }
     };
+
+	const handleSave = async () => {
+		if (!subprojectId || !subproject) return;
+		try {
+			await fetch(`/api/subprojects/${subprojectId}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(subproject),
+			});
+			setIsEditing(false);
+			fetchSubproject(false);
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const handleCancel = () => {
+		setSubproject(originalSubproject);
+		setIsEditing(false);
+	};
 	
 	return (
 		<DashboardLayout>
@@ -116,7 +146,16 @@ export default function SubProjectDetailPage() {
 					<div className="flex flex-col xl:flex-row gap-6">
 						<div className="flex-1 min-w-0 xl:order-1">
 							<div className="mb-6">
-								<h1 className="text-2xl md:text-3xl font-bold mb-2 break-words">{subproject.name}</h1>
+								{isEditing ? (
+									<input
+										type="text"
+										value={subproject.name}
+										onChange={(e) => setSubproject({ ...subproject, name: e.target.value })}
+										className="text-2xl md:text-3xl font-bold mb-2 break-words w-full bg-transparent border-b-2 border-primary"
+									/>
+								) : (
+									<h1 className="text-2xl md:text-3xl font-bold mb-2 break-words">{subproject.name}</h1>
+								)}
 								
 								<div className="flex flex-wrap items-center gap-4 mb-4">
 									<Badge variant="outline">ID: {subproject.subproject_id}</Badge>
@@ -157,7 +196,7 @@ export default function SubProjectDetailPage() {
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="none">Не вибрано</SelectItem>
-                                                    {currentStages.map((stage: any) => (
+                                                    {currentStages.map((stage: SubProjectFunnelStage) => (
                                                         <SelectItem key={stage.sub_project_funnel_stage_id} value={stage.sub_project_funnel_stage_id.toString()}>{stage.name}</SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -194,8 +233,14 @@ export default function SubProjectDetailPage() {
 								</TabsList>
 
 								<div className="mt-6">
-									<TabsContent value="chat"><Card><CardHeader><CardTitle>Чат по підпроекту</CardTitle></CardHeader><CardContent><div className="text-center py-8 text-muted-foreground"><p>Чат буде додано в наступних версіях</p></div></CardContent></Card></TabsContent>
-									<TabsContent value="subprojects"><Card><CardHeader><CardTitle>Вкладені підпроекти</CardTitle></CardHeader><CardContent><div className="text-center py-8 text-muted-foreground"><p>Список вкладених підпроектів буде додано в наступних версіях</p></div></CardContent></Card></TabsContent>
+									import SubProjectChat from "@/components/SubProjectChat";
+									// ... (інші імпорти)
+									
+									// ... (код компонента)
+									
+									                                    <TabsContent value="chat">
+									                                        <SubProjectChat subprojectId={subproject.subproject_id} />
+									                                    </TabsContent>									<TabsContent value="subprojects"><Card><CardHeader><CardTitle>Вкладені підпроекти</CardTitle></CardHeader><CardContent><div className="text-center py-8 text-muted-foreground"><p>Список вкладених підпроектів буде додано в наступних версіях</p></div></CardContent></Card></TabsContent>
 									<TabsContent value="products_services"><Card><CardHeader><CardTitle>Товари та Послуги підпроекту</CardTitle></CardHeader><CardContent><div className="text-center py-8 text-muted-foreground"><p>Список товарів та послуг буде додано в наступних версіях</p></div></CardContent></Card></TabsContent>
 									<TabsContent value="sales"><Card><CardHeader><CardTitle>Продажі по підпроекту</CardTitle></CardHeader><CardContent><div className="text-center py-8 text-muted-foreground"><p>Список продажів буде додано в наступних версіях</p></div></CardContent></Card></TabsContent>
 									<TabsContent value="tasks"><Card><CardHeader><CardTitle>Завдання підпроекту</CardTitle></CardHeader><CardContent><div className="text-center py-8 text-muted-foreground"><p>Завдання будуть додані в наступних версіях</p></div></CardContent></Card></TabsContent>
@@ -204,7 +249,14 @@ export default function SubProjectDetailPage() {
 						</div>
 						
 						<div className="w-full xl:w-80 xl:max-w-sm xl:order-2 flex-shrink-0">
-							<SubProjectInfoPanel subproject={subproject} />
+							<SubProjectInfoPanel 
+								subproject={subproject} 
+								onEdit={() => setIsEditing(!isEditing)} 
+								isEditing={isEditing}
+								onSave={handleSave}
+								onCancel={handleCancel}
+								onSubprojectChange={setSubproject}
+							/>
 						</div>
 					</div>
 				</div>
